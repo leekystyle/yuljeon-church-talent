@@ -3,6 +3,7 @@ import shutil
 import csv
 import io
 import urllib.parse
+from collections import defaultdict
 from typing import Optional, List
 from fastapi import APIRouter, Request, Depends, Form, UploadFile, File, status, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
@@ -757,14 +758,14 @@ async def delete_rule(rule_id: int, db: Session = Depends(get_db)):
 
 
 # -------------------------------------------------------------
-# 4. 달란트로 구매할 수 있는 품목 관리
+# 4. 달란트로 구매할 수 있는 품목 관리 및 판매/재고 현황
 # -------------------------------------------------------------
 @router.get("/items", response_class=HTMLResponse)
 async def manage_items(request: Request, db: Session = Depends(get_db)):
     check_admin(request)
     items = db.query(Item).order_by(Item.id.asc()).all()
     categories = db.query(ItemCategory).filter(ItemCategory.is_active == True).order_by(ItemCategory.display_order.asc(), ItemCategory.id.asc()).all()
-    
+
     # 카테고리가 비어있는 경우 기본 카테고리 자동 주입 보장
     if not categories:
         default_names = ["먹거리", "문화생활", "문구/완구", "도서/학용품", "기타"]
@@ -773,11 +774,92 @@ async def manage_items(request: Request, db: Session = Depends(get_db)):
         db.commit()
         categories = db.query(ItemCategory).filter(ItemCategory.is_active == True).order_by(ItemCategory.display_order.asc(), ItemCategory.id.asc()).all()
 
+    # 활성 소속 부서 목록
+    departments = [d.name for d in db.query(Department).filter(Department.is_active == True).order_by(Department.display_order.asc(), Department.id.asc()).all()]
+    if not departments:
+        departments = ["유치부", "아동부", "청소년부"]
+
+    # 매점 판매 이력 로그 (최신 구매순)
+    sales_logs = db.query(OrderItem).join(Order).join(Student)\
+        .order_by(Order.created_at.desc(), OrderItem.id.desc()).all()
+
+    # 소속 부서별 상위 판매 제품 랭킹 & 전체 베스트셀러 집계
+    dept_items = defaultdict(lambda: defaultdict(lambda: {'qty': 0, 'points': 0, 'item_code': ''}))
+    overall_items = defaultdict(lambda: {'qty': 0, 'points': 0, 'item_code': ''})
+
+    for oi in sales_logs:
+        if oi.order.status == "REFUNDED":
+            continue
+        dept = oi.order.student.department if (oi.order.student and oi.order.student.department) else "기타/미지정"
+        iname = oi.item_name
+        icode = oi.item.item_code if oi.item else ""
+
+        dept_items[dept][iname]['qty'] += oi.quantity
+        dept_items[dept][iname]['points'] += oi.subtotal_points
+        dept_items[dept][iname]['item_code'] = icode
+
+        overall_items[iname]['qty'] += oi.quantity
+        overall_items[iname]['points'] += oi.subtotal_points
+        overall_items[iname]['item_code'] = icode
+
+    dept_top_ranking = {}
+    for dept in departments:
+        items_dict = dept_items.get(dept, {})
+        sorted_list = sorted(
+            [{'name': k, 'qty': v['qty'], 'points': v['points'], 'code': v['item_code']} for k, v in items_dict.items()],
+            key=lambda x: x['qty'],
+            reverse=True
+        )[:3]
+        dept_top_ranking[dept] = sorted_list
+
+    if "기타/미지정" in dept_items:
+        items_dict = dept_items["기타/미지정"]
+        dept_top_ranking["기타/미지정"] = sorted(
+            [{'name': k, 'qty': v['qty'], 'points': v['points'], 'code': v['item_code']} for k, v in items_dict.items()],
+            key=lambda x: x['qty'],
+            reverse=True
+        )[:3]
+
+    overall_ranking = sorted(
+        [{'name': k, 'qty': v['qty'], 'points': v['points'], 'code': v['item_code']} for k, v in overall_items.items()],
+        key=lambda x: x['qty'],
+        reverse=True
+    )[:5]
+
     return templates.TemplateResponse("admin/items.html", {
         "request": request,
         "items": items,
-        "categories": categories
+        "categories": categories,
+        "departments": departments,
+        "sales_logs": sales_logs,
+        "dept_top_ranking": dept_top_ranking,
+        "overall_ranking": overall_ranking
     })
+
+
+@router.post("/items/{item_id}/restock")
+async def restock_item(
+    item_id: int,
+    add_quantity: int = Form(...),
+    memo: Optional[str] = Form(None),
+    db: Session = Depends(get_db)
+):
+    """물품 재고 추가(입고) 처리 (기존 재고에 안전 가산)"""
+    item = db.query(Item).filter(Item.id == item_id).first()
+    if not item:
+        return RedirectResponse(url="/admin/items?error=item_not_found", status_code=status.HTTP_303_SEE_OTHER)
+
+    if add_quantity <= 0:
+        return RedirectResponse(url="/admin/items?error=invalid_quantity", status_code=status.HTTP_303_SEE_OTHER)
+
+    item.stock += add_quantity
+    db.commit()
+
+    encoded_name = urllib.parse.quote(item.name)
+    return RedirectResponse(
+        url=f"/admin/items?msg=restocked&item_name={encoded_name}&added={add_quantity}&total={item.stock}",
+        status_code=status.HTTP_303_SEE_OTHER
+    )
 
 
 

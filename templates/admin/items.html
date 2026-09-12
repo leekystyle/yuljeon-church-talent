@@ -71,7 +71,13 @@
 </div>
 {% endif %}
 
-<div class="card">
+{% if request.query_params.get('msg') == 'restocked' %}
+<div class="alert alert-success" style="margin-bottom: 1.5rem; background-color: #ecfdf5; border-left: 4px solid #10b981; color: #065f46; padding: 1rem; border-radius: 8px;">
+  📦 <strong>'{{ request.query_params.get('item_name') }}'</strong> 상품에 <strong>+{{ request.query_params.get('added') }}개</strong>의 재고가 성공적으로 추가 입고되었습니다! (현재 총 재고: <strong>{{ request.query_params.get('total') }}개</strong>)
+</div>
+{% endif %}
+
+<div class="card" style="margin-bottom: 2rem;">
   <div class="table-responsive">
     <table class="styled-table">
       <thead>
@@ -81,10 +87,10 @@
           <th style="width: 100px;">분류</th>
           <th>상품명</th>
           <th style="width: 110px;">가격(달란트)</th>
-          <th style="width: 100px;">현재 재고</th>
+          <th style="width: 110px;">현재 재고</th>
           <th style="width: 80px; text-align: center;">상태</th>
-          <th style="width: 190px;">재고/단가 간편저장</th>
-          <th style="width: 150px; text-align: center;">상품 관리</th>
+          <th style="width: 130px; text-align: center;">재고 관리</th>
+          <th style="width: 130px; text-align: center;">상품 정보</th>
         </tr>
       </thead>
       <tbody>
@@ -99,9 +105,9 @@
           <td style="color: #d97706; font-weight: 800; font-size: 1.05rem;">{{ it.price }} 달란트</td>
           <td>
             {% if it.stock > 0 %}
-            <strong style="color: #059669;">{{ it.stock }}개</strong>
+            <strong style="color: #059669; font-size: 1.05rem;">{{ it.stock }}개</strong>
             {% else %}
-            <span style="color: #dc2626; font-weight: bold;">품절 (0개)</span>
+            <span style="color: #dc2626; font-weight: bold; background: #fee2e2; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.85rem;">품절 (0개)</span>
             {% endif %}
           </td>
           <td style="text-align: center;">
@@ -111,16 +117,14 @@
             <span class="badge badge-danger">중지</span>
             {% endif %}
           </td>
-          <td>
-            <form action="/admin/items/{{ it.id }}/update_stock" method="POST" style="display: flex; gap: 0.4rem; align-items: center;">
-              <input type="number" name="price" value="{{ it.price }}" class="form-control" style="width: 65px; padding: 0.25rem 0.4rem;" title="가격" required> 달란트
-              <input type="number" name="stock" value="{{ it.stock }}" class="form-control" style="width: 60px; padding: 0.25rem 0.4rem;" title="재고" required> 개
-              <button type="submit" class="btn btn-sm btn-outline">저장</button>
-            </form>
+          <td style="text-align: center;">
+            <button type="button" class="btn btn-sm btn-primary" onclick="openRestockModal('{{ it.id }}', '{{ it.item_code }}', '{{ it.name }}', {{ it.stock }})" style="font-weight: 700; background: #2563eb; padding: 0.35rem 0.75rem; border-radius: 6px; box-shadow: 0 1px 3px rgba(37,99,235,0.2);">
+              ➕ 재고 입고
+            </button>
           </td>
           <td style="text-align: center;">
             <div style="display: flex; gap: 0.35rem; justify-content: center;">
-              <button type="button" class="btn btn-sm btn-primary"
+              <button type="button" class="btn btn-sm btn-outline"
                 data-id="{{ it.id }}"
                 data-code="{{ it.item_code }}"
                 data-name="{{ it.name }}"
@@ -144,6 +148,211 @@
   </div>
 </div>
 
+<!-- 소속별 상위 판매 제품 대시보드 (판매 현황 바로 위 배치) -->
+<div style="margin-top: 2.5rem; margin-bottom: 2rem;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+    <div>
+      <h3 style="font-size: 1.4rem; font-weight: 800; color: #1e3a8a; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.3rem;">
+        📊 소속(부서)별 상위 인기 판매 제품 대시보드
+      </h3>
+      <p style="font-size: 0.9rem; color: #64748b; margin: 0;">
+        어떤 제품들이 주로 어떤 아이들(소속 부서)에게 인기가 있는지 판매 순위를 한눈에 파악하여 발주와 운영에 활용할 수 있습니다.
+      </p>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.2rem;">
+    <!-- 전체 베스트셀러 카드 -->
+    <div class="card" style="padding: 1.2rem; border-top: 4px solid #2563eb; background: #ffffff;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h4 style="font-size: 1.05rem; font-weight: 800; color: #1e3a8a; margin: 0; display: flex; align-items: center; gap: 0.4rem;">
+          🌟 전체 베스트셀러 TOP 5
+        </h4>
+        <span class="badge" style="background: #eff6ff; color: #1d4ed8; font-weight: 700;">전체 소속 통합</span>
+      </div>
+      {% if overall_ranking %}
+      <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+        {% for rank in overall_ranking %}
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.6rem; background: #f8fafc; border-radius: 6px; font-size: 0.9rem;">
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span style="font-weight: 800; font-size: 1rem; width: 22px;">
+              {% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% elif loop.index == 3 %}🥉{% else %}{{ loop.index }}위{% endif %}
+            </span>
+            <span style="font-weight: 700; color: #1e293b;">{{ rank.name }}</span>
+          </div>
+          <div style="text-align: right;">
+            <strong style="color: #2563eb; font-weight: 800;">{{ rank.qty }}개</strong>
+            <span style="font-size: 0.78rem; color: #94a3b8;">({{ rank.points }}달란트)</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div style="text-align: center; color: #94a3b8; padding: 2rem 0; font-size: 0.9rem;">아직 판매 내역이 없습니다.</div>
+      {% endif %}
+    </div>
+
+    <!-- 부서별 인기 품목 카드 반복 -->
+    {% for dept in departments %}
+    {% set top_items = dept_top_ranking.get(dept, []) %}
+    <div class="card" style="padding: 1.2rem; border-top: 4px solid {% if '유치' in dept %}#f59e0b{% elif '아동' in dept %}#10b981{% elif '청소년' in dept %}#8b5cf6{% else %}#0ea5e9{% endif %}; background: #ffffff;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h4 style="font-size: 1.05rem; font-weight: 800; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 0.4rem;">
+          {% if '유치' in dept %}👶{% elif '아동' in dept %}🧒{% elif '청소년' in dept %}🧑{% else %}👥{% endif %} {{ dept }} 인기 품목
+        </h4>
+        <span class="badge" style="{% if '유치' in dept %}background: #fef3c7; color: #b45309;{% elif '아동' in dept %}background: #d1fae5; color: #047857;{% elif '청소년' in dept %}background: #ede9fe; color: #6d28d9;{% else %}background: #e0f2fe; color: #0369a1;{% endif %} font-weight: 700;">TOP 3</span>
+      </div>
+      {% if top_items %}
+      <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+        {% for rank in top_items %}
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.6rem; background: #f8fafc; border-radius: 6px; font-size: 0.9rem;">
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span style="font-weight: 800; font-size: 1rem; width: 22px;">
+              {% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% elif loop.index == 3 %}🥉{% else %}{{ loop.index }}위{% endif %}
+            </span>
+            <span style="font-weight: 700; color: #1e293b;">{{ rank.name }}</span>
+          </div>
+          <div style="text-align: right;">
+            <strong style="color: #059669; font-weight: 800;">{{ rank.qty }}개</strong>
+            <span style="font-size: 0.78rem; color: #94a3b8;">({{ rank.points }}달란트)</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div style="text-align: center; color: #94a3b8; padding: 2rem 0; font-size: 0.9rem;">{{ dept }} 판매 내역이 없습니다.</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- 매점 물품 판매 이력 현황 (재고 차감 상세 내역) -->
+<div class="card" style="padding: 1.5rem; margin-bottom: 2.5rem; background: #ffffff; border: 1px solid var(--border);">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; flex-wrap: wrap; gap: 0.8rem;">
+    <div>
+      <h3 style="font-size: 1.35rem; font-weight: 800; color: #1e3a8a; margin-bottom: 0.3rem; display: flex; align-items: center; gap: 0.5rem;">
+        📜 매점 물품 판매 이력 현황 (재고 차감 상세 내역)
+      </h3>
+      <p style="font-size: 0.88rem; color: #64748b; margin: 0;">
+        판매로 인해 재고가 차감된 모든 내역을 학생, 소속 부서, 일시, 품목, 수량 기준으로 정밀 조회합니다.
+      </p>
+    </div>
+    <div style="display: flex; align-items: center; gap: 0.5rem;">
+      <span class="badge" style="background: #eff6ff; color: #1d4ed8; font-size: 0.88rem; padding: 0.4rem 0.7rem; font-weight: 700;">
+        총 <span id="sales-filtered-count">{{ sales_logs | length }}</span>건 (<span id="sales-filtered-qty">0</span>개 판매 / <span id="sales-filtered-points">0</span>달란트)
+      </span>
+      <button type="button" class="btn btn-sm btn-outline" onclick="resetSalesFilters()" style="font-size: 0.8rem; padding: 0.35rem 0.6rem;">🔄 필터 초기화</button>
+    </div>
+  </div>
+
+  <!-- 다차원 검색 필터 바 -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.8rem; margin-bottom: 1.2rem; background: #f8fafc; padding: 0.9rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+    <div>
+      <label class="form-label" style="font-size: 0.8rem; font-weight: 700; color: #475569; margin-bottom: 0.25rem;">소속 부서</label>
+      <select id="filter-sales-dept" class="form-control" onchange="filterSalesTable()" style="font-size: 0.88rem; padding: 0.4rem 0.6rem;">
+        <option value="ALL">전체 부서</option>
+        {% for d in departments %}
+        <option value="{{ d }}">{{ d }}</option>
+        {% endfor %}
+        <option value="기타/미지정">기타/미지정</option>
+      </select>
+    </div>
+    <div>
+      <label class="form-label" style="font-size: 0.8rem; font-weight: 700; color: #475569; margin-bottom: 0.25rem;">구매 상품</label>
+      <select id="filter-sales-item" class="form-control" onchange="filterSalesTable()" style="font-size: 0.88rem; padding: 0.4rem 0.6rem;">
+        <option value="ALL">전체 상품</option>
+        {% for it in items %}
+        <option value="{{ it.name }}">{{ it.name }} ({{ it.item_code }})</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="grid-column: span 2;">
+      <label class="form-label" style="font-size: 0.8rem; font-weight: 700; color: #475569; margin-bottom: 0.25rem;">학생 성명 또는 학번 검색</label>
+      <input type="text" id="filter-sales-student" class="form-control" placeholder="학생 성명 또는 학번 검색 (예: 민수, S005)" oninput="filterSalesTable()" style="font-size: 0.88rem; padding: 0.4rem 0.6rem;">
+    </div>
+  </div>
+
+  <!-- 판매 내역 테이블 -->
+  <div class="table-responsive">
+    <table class="styled-table">
+      <thead>
+        <tr>
+          <th style="width: 15%;">구매 일시(KST)</th>
+          <th style="width: 20%;">대상 학생</th>
+          <th style="width: 14%;">소속 부서</th>
+          <th style="width: 23%;">구매 상품</th>
+          <th style="width: 10%; text-align: right;">수량</th>
+          <th style="width: 10%; text-align: right;">결제 달란트</th>
+          <th style="width: 8%; text-align: center;">상태</th>
+        </tr>
+      </thead>
+      <tbody id="sales-table-body">
+        {% for log in sales_logs %}
+        {% set st = log.order.student if log.order else None %}
+        <tr class="sales-log-row"
+            data-dept="{{ st.department if (st and st.department) else '기타/미지정' }}"
+            data-item="{{ log.item_name }}"
+            data-name="{{ st.name if st else '' }}"
+            data-code="{{ st.student_code if st else '' }}"
+            data-qty="{{ log.quantity }}"
+            data-points="{{ log.subtotal_points }}"
+            data-status="{{ log.order.status if log.order else 'COMPLETED' }}">
+          <td style="font-size: 0.85rem; color: #64748b;">
+            {{ log.order.created_at.strftime('%Y-%m-%d %H:%M') if (log.order and log.order.created_at) else '-' }}
+          </td>
+          <td>
+            {% if st %}
+            <strong>{{ st.name }}</strong> <code style="font-size: 0.8rem; color: #475569;">{{ st.student_code }}</code>
+            {% else %}
+            <span style="color: #94a3b8;">-</span>
+            {% endif %}
+          </td>
+          <td>
+            {% set dept_val = st.department if (st and st.department) else '미지정' %}
+            {% if '유치' in dept_val %}
+            <span class="badge" style="color: #b45309; background-color: #fef3c7; border: 1px solid #fde68a; font-weight: 700; font-size: 0.8rem; padding: 0.2rem 0.5rem; border-radius: 6px;">{{ dept_val }}</span>
+            {% elif '아동' in dept_val or '초등' in dept_val %}
+            <span class="badge" style="color: #047857; background-color: #d1fae5; border: 1px solid #a7f3d0; font-weight: 700; font-size: 0.8rem; padding: 0.2rem 0.5rem; border-radius: 6px;">{{ dept_val }}</span>
+            {% elif '청소년' in dept_val or '중등' in dept_val or '고등' in dept_val %}
+            <span class="badge" style="color: #6d28d9; background-color: #ede9fe; border: 1px solid #ddd6fe; font-weight: 700; font-size: 0.8rem; padding: 0.2rem 0.5rem; border-radius: 6px;">{{ dept_val }}</span>
+            {% elif '청년' in dept_val %}
+            <span class="badge" style="color: #0369a1; background-color: #e0f2fe; border: 1px solid #bae6fd; font-weight: 700; font-size: 0.8rem; padding: 0.2rem 0.5rem; border-radius: 6px;">{{ dept_val }}</span>
+            {% else %}
+            <span class="badge" style="color: #64748b; background-color: #f1f5f9; border: 1px solid #e2e8f0; font-weight: 600; font-size: 0.8rem; padding: 0.2rem 0.5rem; border-radius: 6px;">{{ dept_val }}</span>
+            {% endif %}
+          </td>
+          <td>
+            <strong>{{ log.item_name }}</strong>
+            {% if log.item %}
+            <code style="font-size: 0.75rem; color: #64748b;">{{ log.item.item_code }}</code>
+            {% endif %}
+          </td>
+          <td style="text-align: right; font-weight: 700; color: #1e293b;">
+            {{ log.quantity }}개
+          </td>
+          <td style="text-align: right; font-weight: 800; color: #d97706;">
+            {{ log.subtotal_points }} 달란트
+          </td>
+          <td style="text-align: center;">
+            {% if log.order and log.order.status == 'REFUNDED' %}
+            <span class="badge badge-danger" style="font-size: 0.75rem;">반품/환불</span>
+            {% else %}
+            <span class="badge badge-success" style="font-size: 0.75rem;">완료</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr id="no-sales-row">
+          <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2.5rem 0;">
+            아직 매점 판매 이력이 존재하지 않습니다.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
 
 <!-- 물품 추가 모달 -->
 <div id="item-modal" class="modal-backdrop">
@@ -329,6 +538,57 @@
     </form>
   </div>
 </div>
+
+<!-- 재고 추가(입고) 전용 모달 -->
+<div id="restock-modal" class="modal-backdrop">
+  <div class="modal-content" style="max-width: 480px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+      <h3 style="margin: 0; color: #1e3a8a; font-size: 1.35rem; display: flex; align-items: center; gap: 0.4rem;">
+        📦 매점 물품 재고 추가 입고
+      </h3>
+      <button type="button" onclick="closeRestockModal()" style="background: none; border: none; font-size: 1.3rem; cursor: pointer; color: #64748b;">✕</button>
+    </div>
+    <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1.2rem;">
+      물품 추가 구매로 확보된 수량을 입력하여 기존 재고에 안전하게 가산합니다.
+    </p>
+
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.8rem 1rem; margin-bottom: 1.2rem;">
+      <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem;">
+        <span style="color: #64748b; font-size: 0.85rem;">대상 상품</span>
+        <strong id="restock-item-name" style="color: #1e293b; font-size: 0.95rem;">-</strong>
+      </div>
+      <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem;">
+        <span style="color: #64748b; font-size: 0.85rem;">상품 코드</span>
+        <code id="restock-item-code" style="color: #2563eb; font-weight: 700;">-</code>
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span style="color: #64748b; font-size: 0.85rem;">현재 보유 재고</span>
+        <strong id="restock-current-stock" style="color: #059669; font-size: 1.05rem;">0개</strong>
+      </div>
+    </div>
+
+    <form id="restock-form" action="" method="POST">
+      <div class="form-group">
+        <label class="form-label" for="restock-qty">추가 입고 수량 (개) <span style="color: red;">*</span></label>
+        <input type="number" id="restock-qty" name="add_quantity" class="form-control" placeholder="예: 10" min="1" value="10" required oninput="calcExpectedStock()" style="font-size: 1.15rem; font-weight: 800; color: #2563eb;">
+      </div>
+
+      <div id="restock-calc-preview" style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 0.65rem 0.8rem; margin-bottom: 1rem; font-size: 0.9rem; color: #1e40af; text-align: center; font-weight: 600;">
+        현재 0개 + 입고 10개 = <strong style="color: #1d4ed8; font-size: 1.05rem;">총 10개</strong>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="restock-memo">입고 사유 / 비고 (선택)</label>
+        <input type="text" id="restock-memo" name="memo" class="form-control" placeholder="예: 주일 매점 물품 추가 구매 입고">
+      </div>
+
+      <div style="display: flex; gap: 0.5rem; margin-top: 1.2rem;">
+        <button type="button" class="btn btn-outline" style="flex: 1;" onclick="closeRestockModal()">취소</button>
+        <button type="submit" class="btn btn-primary" style="flex: 2; font-weight: 700;">📦 입고 및 재고 추가 적용</button>
+      </div>
+    </form>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -338,6 +598,33 @@
 
   function openItemCsvModal() { document.getElementById('item-csv-modal').classList.add('show'); }
   function closeItemCsvModal() { document.getElementById('item-csv-modal').classList.remove('show'); }
+
+  let currentRestockBaseStock = 0;
+
+  function openRestockModal(id, code, name, stock) {
+    currentRestockBaseStock = parseInt(stock, 10) || 0;
+    document.getElementById('restock-item-name').textContent = name;
+    document.getElementById('restock-item-code').textContent = code;
+    document.getElementById('restock-current-stock').textContent = currentRestockBaseStock + '개';
+    document.getElementById('restock-qty').value = 10;
+    document.getElementById('restock-memo').value = '';
+    document.getElementById('restock-form').action = '/admin/items/' + id + '/restock';
+    calcExpectedStock();
+    document.getElementById('restock-modal').classList.add('show');
+  }
+
+  function closeRestockModal() {
+    document.getElementById('restock-modal').classList.remove('show');
+  }
+
+  function calcExpectedStock() {
+    const addQty = parseInt(document.getElementById('restock-qty').value, 10) || 0;
+    const total = currentRestockBaseStock + addQty;
+    const preview = document.getElementById('restock-calc-preview');
+    if (preview) {
+      preview.innerHTML = `현재 ${currentRestockBaseStock}개 + 입고 ${addQty}개 = <strong style="color: #1d4ed8; font-size: 1.05rem;">총 ${total}개</strong>`;
+    }
+  }
 
   function openEditItemModal(btn) {
     const id = btn.getAttribute('data-id');
@@ -399,6 +686,65 @@
       }
     }
   }
+
+  // --- 매점 판매 이력 다차원 필터링 함수 ---
+  function filterSalesTable() {
+    const deptFilter = document.getElementById('filter-sales-dept') ? document.getElementById('filter-sales-dept').value : 'ALL';
+    const itemFilter = document.getElementById('filter-sales-item') ? document.getElementById('filter-sales-item').value : 'ALL';
+    const studentQuery = document.getElementById('filter-sales-student') ? document.getElementById('filter-sales-student').value.trim().toLowerCase() : '';
+
+    const rows = document.querySelectorAll('.sales-log-row');
+    let visibleCount = 0;
+    let visibleQty = 0;
+    let visiblePoints = 0;
+
+    rows.forEach(row => {
+      const rowDept = row.getAttribute('data-dept') || '';
+      const rowItem = row.getAttribute('data-item') || '';
+      const rowName = (row.getAttribute('data-name') || '').toLowerCase();
+      const rowCode = (row.getAttribute('data-code') || '').toLowerCase();
+      const rowQty = parseInt(row.getAttribute('data-qty') || '0', 10);
+      const rowPoints = parseInt(row.getAttribute('data-points') || '0', 10);
+
+      const deptMatch = (deptFilter === 'ALL' || rowDept === deptFilter);
+      const itemMatch = (itemFilter === 'ALL' || rowItem === itemFilter);
+      const studentMatch = (!studentQuery || rowName.includes(studentQuery) || rowCode.includes(studentQuery));
+
+      if (deptMatch && itemMatch && studentMatch) {
+        row.style.display = '';
+        visibleCount++;
+        visibleQty += rowQty;
+        visiblePoints += rowPoints;
+      } else {
+        row.style.display = 'none';
+      }
+    });
+
+    const noSalesRow = document.getElementById('no-sales-row');
+    if (noSalesRow) {
+      noSalesRow.style.display = (visibleCount === 0 && rows.length > 0) ? '' : 'none';
+    }
+
+    const countElem = document.getElementById('sales-filtered-count');
+    if (countElem) countElem.textContent = visibleCount;
+
+    const qtyElem = document.getElementById('sales-filtered-qty');
+    if (qtyElem) qtyElem.textContent = visibleQty.toLocaleString();
+
+    const pointsElem = document.getElementById('sales-filtered-points');
+    if (pointsElem) pointsElem.textContent = visiblePoints.toLocaleString();
+  }
+
+  function resetSalesFilters() {
+    if (document.getElementById('filter-sales-dept')) document.getElementById('filter-sales-dept').value = 'ALL';
+    if (document.getElementById('filter-sales-item')) document.getElementById('filter-sales-item').value = 'ALL';
+    if (document.getElementById('filter-sales-student')) document.getElementById('filter-sales-student').value = '';
+    filterSalesTable();
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    filterSalesTable();
+  });
 </script>
 {% endblock %}
 
