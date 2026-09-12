@@ -73,15 +73,12 @@
       <span class="student-badge">학생 포털</span>
     </a>
     <nav class="student-nav-links">
+      <a href="/student/dashboard" class="student-nav-item">🙋‍♂️ 학생 포털</a>
+      <a href="/student/rules" class="student-nav-item">📜 기준/물품 열람</a>
       {% if student %}
-      <a href="/student/dashboard" class="student-nav-item">🏠 내 달란트</a>
-      <a href="/student/history" class="student-nav-item">📋 활동 내역</a>
-      <a href="/student/rules" class="student-nav-item">📜 기준표/물품</a>
-      <a href="/student/change_password" class="student-nav-item">🔐 비밀번호 변경</a>
-      <a href="/auth/student/logout" class="student-nav-item logout">로그아웃</a>
+      <a href="/auth/student/logout" class="student-nav-item logout" style="margin-left: 0.5rem;">로그아웃</a>
       {% else %}
-      <a href="/student/login" class="student-nav-item">🔑 로그인</a>
-      <a href="/student/register" class="student-nav-item">📝 회원가입</a>
+      <a href="/student/login" class="student-nav-item" style="color: #2563eb; font-weight: 700; margin-left: 0.5rem;">로그인</a>
       {% endif %}
     </nav>
   </header>

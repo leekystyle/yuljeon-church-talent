@@ -221,6 +221,32 @@ async def edit_student(
 
 
 
+@router.get("/students/{student_id}/preview", response_class=HTMLResponse)
+async def preview_student_screen(
+    student_id: int,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """관리자 콘솔에서 특정 학생의 포털 화면 새 창 미리보기"""
+    check_admin(request)
+    student = db.query(Student).filter(Student.id == student_id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="학생을 찾을 수 없습니다.")
+
+    recent_earnings = db.query(TalentEarning).filter(TalentEarning.student_id == student.id)\
+        .order_by(TalentEarning.created_at.desc()).limit(5).all()
+    recent_orders = db.query(Order).filter(Order.student_id == student.id)\
+        .order_by(Order.created_at.desc()).limit(5).all()
+
+    return templates.TemplateResponse("student/dashboard.html", {
+        "request": request,
+        "student": student,
+        "recent_earnings": recent_earnings,
+        "recent_orders": recent_orders,
+        "is_admin_preview": True
+    })
+
+
 @router.get("/students/csv/template")
 async def download_students_csv_template(request: Request):
     """학생 등록 CSV 양식 다운로드"""
@@ -805,17 +831,18 @@ async def list_orders(request: Request, db: Session = Depends(get_db)):
 @router.post("/orders/{order_id}/modify")
 async def modify_order(
     order_id: int,
-    action: str = Form(...),  # 'refund' 또는 'update'
-    new_item_id: Optional[int] = Form(None),
-    new_quantity: Optional[int] = Form(None),
+    request: Request,
     db: Session = Depends(get_db)
 ):
-    """구매 내역 수정/반품 로직: 기존 구매 취소(원상복구) 후 신규 구매 내역 갱신"""
+    """구매 내역 수정/반품 로직: 기존 구매 취소(원상복구) 후 신규 구매 내역 갱신 (복수 품목 지원)"""
+    check_admin(request)
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order or order.status != "COMPLETED":
         return RedirectResponse(url="/admin/orders?error=invalid_order", status_code=status.HTTP_303_SEE_OTHER)
 
     student = order.student
+    form_data = await request.form()
+    action = form_data.get("action")
 
     # 1. 기존 사용 달란트 및 재고 전액 원상복구 (Rollback)
     student.current_talent += order.total_points
@@ -831,14 +858,47 @@ async def modify_order(
         db.commit()
         return RedirectResponse(url="/admin/orders?msg=refunded", status_code=status.HTTP_303_SEE_OTHER)
 
-    elif action == "update" and new_item_id and new_quantity and new_quantity > 0:
-        # 수정한 품목 및 수량으로 재결제 처리
-        new_item = db.query(Item).filter(Item.id == new_item_id).first()
-        if not new_item or new_item.stock < new_quantity:
-            db.rollback()
-            return RedirectResponse(url="/admin/orders?error=stock_shortage", status_code=status.HTTP_303_SEE_OTHER)
+    elif action == "update":
+        # 다중 품목 파싱
+        raw_item_ids = form_data.getlist("item_ids")
+        raw_quantities = form_data.getlist("quantities")
 
-        new_total = new_item.price * new_quantity
+        # 기존 단일 폼 호환
+        if not raw_item_ids and form_data.get("new_item_id"):
+            raw_item_ids = [form_data.get("new_item_id")]
+            raw_quantities = [form_data.get("new_quantity", 1)]
+
+        # item_id별 수량 집계 (0 초과만 유효)
+        items_map = {}
+        for r_id, r_qty in zip(raw_item_ids, raw_quantities):
+            try:
+                iid = int(r_id)
+                qty = int(r_qty)
+                if qty > 0:
+                    items_map[iid] = items_map.get(iid, 0) + qty
+            except (ValueError, TypeError):
+                continue
+
+        if not items_map:
+            db.rollback()
+            return RedirectResponse(url="/admin/orders?error=no_items", status_code=status.HTTP_303_SEE_OTHER)
+
+        # 재고 확인 및 새 결제 총액 계산
+        new_total = 0
+        items_to_process = []
+        for iid, qty in items_map.items():
+            item = db.query(Item).filter(Item.id == iid).first()
+            if not item:
+                db.rollback()
+                return RedirectResponse(url="/admin/orders?error=item_not_found", status_code=status.HTTP_303_SEE_OTHER)
+            if item.stock < qty:
+                db.rollback()
+                return RedirectResponse(url=f"/admin/orders?error=stock_shortage&item_name={urllib.parse.quote(item.name)}", status_code=status.HTTP_303_SEE_OTHER)
+            subtotal = item.price * qty
+            new_total += subtotal
+            items_to_process.append((item, qty, subtotal))
+
+        # 학생 잔여 달란트 확인 (원상복구된 잔액 기준)
         if student.current_talent < new_total:
             db.rollback()
             return RedirectResponse(url="/admin/orders?error=insufficient_talent", status_code=status.HTTP_303_SEE_OTHER)
@@ -846,26 +906,29 @@ async def modify_order(
         # 새 차감 적용
         student.current_talent -= new_total
         student.total_spent += new_total
-        new_item.stock -= new_quantity
+        for item, qty, _ in items_to_process:
+            item.stock -= qty
 
-        # 기존 주문 건 내용 교체
+        # 기존 주문 세부 품목 삭제
+        for o_item in list(order.items):
+            db.delete(o_item)
+        order.items.clear()
+
+        # 신규 품목 추가
+        for item, qty, subtotal in items_to_process:
+            new_order_item = OrderItem(
+                order_id=order.id,
+                item_id=item.id,
+                item_name=item.name,
+                unit_price=item.price,
+                quantity=qty,
+                subtotal_points=subtotal
+            )
+            db.add(new_order_item)
+
         order.total_points = new_total
         order.status = "COMPLETED"
         order.updated_at = get_kst_now()
-
-        # 세부 품목 교체
-        for o_item in list(order.items):
-            db.delete(o_item)
-        
-        new_order_item = OrderItem(
-            order_id=order.id,
-            item_id=new_item.id,
-            item_name=new_item.name,
-            unit_price=new_item.price,
-            quantity=new_quantity,
-            subtotal_points=new_total
-        )
-        db.add(new_order_item)
         db.commit()
         return RedirectResponse(url="/admin/orders?msg=modified", status_code=status.HTTP_303_SEE_OTHER)
 

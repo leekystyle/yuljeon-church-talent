@@ -3,6 +3,16 @@
 {% block title %}마이 달란트 - {{ student.name }} 학생{% endblock %}
 
 {% block content %}
+{% if is_admin_preview %}
+<div style="background: #eff6ff; border: 1.5px solid #3b82f6; border-radius: 8px; padding: 0.9rem 1.2rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.8rem; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);">
+  <div style="display: flex; align-items: center; gap: 0.6rem; color: #1e40af; font-size: 0.95rem;">
+    <span style="font-size: 1.2rem;">🔍</span>
+    <span><strong>[관리자 미리보기 모드]</strong> 현재 <strong>{{ student.name }}</strong> 학생 화면의 실제 대시보드를 열람 중입니다.</span>
+  </div>
+  <button type="button" onclick="window.close()" class="btn btn-sm btn-outline" style="background: white; border-color: #3b82f6; color: #1e40af; font-weight: 700;">✕ 미리보기 창 닫기</button>
+</div>
+{% endif %}
+
 {% if request.query_params.get('msg') == 'password_changed' %}
 <div class="alert alert-success" style="margin-bottom: 1.5rem;">
   🎉 비밀번호가 안전하게 변경되었습니다! 앞으로 이 비밀번호로 로그인해 주세요.
@@ -21,9 +31,14 @@
       </div>
     </div>
     <div style="display: flex; gap: 0.6rem; flex-wrap: wrap;">
+      {% if is_admin_preview %}
+      <a href="/student/rules" class="btn btn-accent">🛍️ 기준/물품 열람</a>
+      <button type="button" onclick="window.close()" class="btn btn-outline" style="background: rgba(255,255,255,0.15); color: white; border-color: rgba(255,255,255,0.3);">창 닫기</button>
+      {% else %}
       <a href="/student/change_password" class="btn btn-outline" style="background: rgba(255,255,255,0.15); color: white; border-color: rgba(255,255,255,0.3);">🔐 비밀번호 변경</a>
       <a href="/student/rules" class="btn btn-accent">🛍️ 매점 품목 열람</a>
       <a href="/auth/student/logout" class="btn btn-outline" style="background: rgba(255,255,255,0.15); color: white; border-color: rgba(255,255,255,0.3);">로그아웃</a>
+      {% endif %}
     </div>
   </div>
 </div>

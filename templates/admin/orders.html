@@ -11,6 +11,7 @@
   <a href="/admin/items" class="btn btn-sm btn-outline">🛍️ 매점 물품/재고</a>
   <a href="/admin/orders" class="btn btn-sm btn-primary">🔄 구매내역 수정/반품</a>
   <a href="/admin/annual_reset" class="btn btn-sm btn-outline">⏳ 연간 총괄 초기화</a>
+  <a href="/kiosk" target="_blank" class="btn btn-sm btn-accent" style="font-weight: 700;">🛒 매점 키오스크 ↗</a>
   <a href="/auth/admin/logout" class="btn btn-sm btn-danger" style="margin-left: auto;">로그아웃</a>
 </div>
 
@@ -24,11 +25,13 @@
 {% if request.query_params.get('msg') == 'refunded' %}
 <div class="alert alert-success">✓ 반품 처리가 완료되었습니다. 달란트가 학생에게 즉시 환불되었고 재고가 복원되었습니다.</div>
 {% elif request.query_params.get('msg') == 'modified' %}
-<div class="alert alert-success">✓ 주문 수정이 완료되었습니다. 기존 거래 롤백 후 새로운 품목으로 갱신되었습니다.</div>
+<div class="alert alert-success">✓ 주문 수정이 완료되었습니다. 기존 거래 롤백 후 수정된 품목들로 갱신되었습니다.</div>
 {% elif request.query_params.get('error') == 'stock_shortage' %}
-<div class="alert alert-danger">⚠️ 변경하려는 품목의 재고가 부족합니다.</div>
+<div class="alert alert-danger">⚠️ 변경하려는 품목{% if request.query_params.get('item_name') %}({{ request.query_params.get('item_name') }}){% endif %}의 재고가 부족합니다.</div>
 {% elif request.query_params.get('error') == 'insufficient_talent' %}
 <div class="alert alert-danger">⚠️ 학생의 보유 달란트가 부족하여 변경할 수 없습니다.</div>
+{% elif request.query_params.get('error') == 'no_items' %}
+<div class="alert alert-danger">⚠️ 주문 품목이 최소 1개 이상 존재해야 합니다. (전체 취소는 '반품/환불' 버튼을 이용해 주세요)</div>
 {% endif %}
 
 <div class="card">
@@ -78,7 +81,11 @@
           <td>
             {% if o.status == 'COMPLETED' %}
             <div style="display: flex; gap: 0.4rem;">
-              <button class="btn btn-sm btn-outline" onclick="openModifyModal({{ o.id }}, '{{ o.order_number }}', '{{ o.student.name }}', {{ o.total_points }})">
+              <button type="button" class="btn btn-sm btn-outline" onclick='openModifyModal({{ o.id }}, {{ o.order_number | tojson }}, {{ o.student.name | tojson }}, {{ o.total_points }}, [
+                {% for it in o.items %}
+                { itemId: {{ it.item_id or 0 }}, itemName: {{ it.item_name | tojson }}, unitPrice: {{ it.unit_price }}, quantity: {{ it.quantity }} }{% if not loop.last %},{% endif %}
+                {% endfor %}
+              ])'>
                 수정(변경)
               </button>
               <form action="/admin/orders/{{ o.id }}/modify" method="POST" onsubmit="return confirm('이 구매 건을 반품(환불) 처리하시겠습니까? 학생에게 달란트가 즉시 복구됩니다.');">
@@ -97,34 +104,72 @@
   </div>
 </div>
 
-<!-- 구매 내역 수정 모달 -->
+<!-- 구매 내역 다중 품목 수정 모달 -->
 <div id="modify-modal" class="modal-backdrop">
-  <div class="modal-content">
-    <h3 style="margin-bottom: 0.4rem; color: #1e3a8a;">구매 내역 품목/수량 변경</h3>
+  <div class="modal-content" style="max-width: 680px; width: 95%;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+      <h3 style="margin: 0; color: #1e3a8a; font-size: 1.35rem;">🛍️ 구매 내역 품목/수량 변경</h3>
+      <button type="button" onclick="closeModifyModal()" style="background: none; border: none; font-size: 1.3rem; cursor: pointer; color: #64748b;">✕</button>
+    </div>
     <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1.2rem;" id="modify-desc">
-      기존 구매 내역을 원상복구(환불)한 후, 선택한 신규 품목으로 교체 결제합니다.
+      기존 구매 내역을 원상복구(환불)한 후, 선택한 품목 및 수량으로 재결제 처리합니다.
     </p>
 
     <form id="modify-form" method="POST">
       <input type="hidden" name="action" value="update">
-      
-      <div class="form-group">
-        <label class="form-label" for="new-item-id">교체할 신규 물품 선택</label>
-        <select id="new-item-id" name="new_item_id" class="form-control" required>
+
+      <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin-bottom: 1.2rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
+          <strong style="font-size: 0.95rem; color: #1e293b;">주문 품목 목록 (수량 조정 및 삭제)</strong>
+          <span style="font-size: 0.82rem; color: #64748b;">수량을 조정하거나 삭제하여 주문 내역을 변경할 수 있습니다.</span>
+        </div>
+
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;" id="modify-items-table">
+          <thead>
+            <tr style="border-bottom: 2px solid #e2e8f0; text-align: left; color: #64748b; font-size: 0.82rem;">
+              <th style="padding: 0.4rem 0.5rem;">품목명</th>
+              <th style="padding: 0.4rem 0.5rem; width: 90px;">단가</th>
+              <th style="padding: 0.4rem 0.5rem; width: 100px;">수량</th>
+              <th style="padding: 0.4rem 0.5rem; width: 95px; text-align: right;">소계</th>
+              <th style="padding: 0.4rem 0.5rem; width: 65px; text-align: center;">관리</th>
+            </tr>
+          </thead>
+          <tbody id="modify-items-tbody">
+            <!-- Dynamic item rows rendered by JS -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 품목 추가 영역 -->
+      <div style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 1.2rem; background: #fff; padding: 0.8rem; border: 1px dashed #cbd5e1; border-radius: 8px;">
+        <select id="add-item-select" class="form-control" style="flex: 1; font-size: 0.9rem;">
+          <option value="">-- 추가할 품목 선택 --</option>
           {% for item in items %}
-          <option value="{{ item.id }}">{{ item.name }} ({{ item.price }}달란트 / 재고 {{ item.stock }}개)</option>
+          <option value="{{ item.id }}" data-name="{{ item.name }}" data-price="{{ item.price }}" data-stock="{{ item.stock }}">
+            {{ item.name }} ({{ item.price }}달란트 / 남은재고 {{ item.stock }}개)
+          </option>
           {% endfor %}
         </select>
+        <button type="button" class="btn btn-outline" style="white-space: nowrap; font-weight: 700;" onclick="handleAddSelectedRow()">
+          ➕ 품목 추가
+        </button>
       </div>
 
-      <div class="form-group">
-        <label class="form-label" for="new-quantity">변경할 수량</label>
-        <input type="number" id="new-quantity" name="new_quantity" class="form-control" value="1" min="1" max="10" required>
+      <!-- 최종 계산 요약 -->
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.9rem 1.2rem; background: #eff6ff; border-radius: 8px; border: 1px solid #bfdbfe; margin-bottom: 1.2rem; flex-wrap: wrap; gap: 0.5rem;">
+        <div>
+          <span style="font-size: 0.85rem; color: #1e40af;">기존 결제: <strong id="modal-orig-total">0</strong> 달란트</span>
+          <span style="margin: 0 0.5rem; color: #93c5fd;">|</span>
+          <span style="font-size: 0.85rem; color: #1e40af;">변동: <strong id="modal-diff-total">0</strong></span>
+        </div>
+        <div style="font-size: 1.15rem; font-weight: 800; color: #1d4ed8;">
+          수정 결제 달란트: <span id="modal-new-total" style="color: #dc2626; font-size: 1.3rem;">0</span> 달란트
+        </div>
       </div>
 
-      <div style="display: flex; gap: 0.5rem; margin-top: 1.2rem;">
+      <div style="display: flex; gap: 0.5rem;">
         <button type="button" class="btn btn-outline" style="flex: 1;" onclick="closeModifyModal()">취소</button>
-        <button type="submit" class="btn btn-primary" style="flex: 2;">수정 및 갱신 적용</button>
+        <button type="submit" class="btn btn-primary" style="flex: 2; font-weight: 700;">수정 및 갱신 적용</button>
       </div>
     </form>
   </div>
@@ -133,11 +178,131 @@
 
 {% block scripts %}
 <script>
-  function openModifyModal(orderId, orderNo, studentName, total) {
+  let currentOrderItems = [];
+  let originalTotal = 0;
+
+  function openModifyModal(orderId, orderNo, studentName, total, items) {
     document.getElementById('modify-form').action = `/admin/orders/${orderId}/modify`;
-    document.getElementById('modify-desc').innerText = `[${orderNo}] ${studentName} 학생 (기존 결제: ${total}달란트) 건의 품목/수량을 변경합니다.`;
+    document.getElementById('modify-desc').innerText = `[${orderNo}] ${studentName} 학생 (기존 결제: ${total}달란트) 건의 품목 및 수량을 수정합니다.`;
+    originalTotal = total;
+    document.getElementById('modal-orig-total').innerText = total;
+
+    currentOrderItems = (items || []).map(it => ({
+      itemId: it.itemId,
+      itemName: it.itemName,
+      unitPrice: it.unitPrice,
+      quantity: it.quantity
+    }));
+
+    renderModifyTable();
     document.getElementById('modify-modal').classList.add('show');
   }
+
+  function renderModifyTable() {
+    const tbody = document.getElementById('modify-items-tbody');
+    tbody.innerHTML = '';
+
+    if (!currentOrderItems || currentOrderItems.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 1.5rem; color: #94a3b8;">주문에 포함된 품목이 없습니다. 아래에서 품목을 추가해 주세요.</td></tr>`;
+      calculateTotals();
+      return;
+    }
+
+    currentOrderItems.forEach((item, index) => {
+      const tr = document.createElement('tr');
+      tr.style.borderBottom = '1px solid #f1f5f9';
+      tr.innerHTML = `
+        <td style="padding: 0.5rem; font-weight: 600; color: #1e293b;">
+          ${escapeHtml(item.itemName)}
+          <input type="hidden" name="item_ids" value="${item.itemId}">
+        </td>
+        <td style="padding: 0.5rem; color: #64748b;">
+          ${item.unitPrice}달란트
+        </td>
+        <td style="padding: 0.5rem;">
+          <input type="number" name="quantities" class="form-control" style="width: 80px; padding: 0.25rem 0.5rem; font-size: 0.9rem;" min="1" max="99" value="${item.quantity}" oninput="changeQuantity(${index}, this.value)">
+        </td>
+        <td style="padding: 0.5rem; text-align: right; font-weight: 700; color: #d97706;">
+          <span id="row-subtotal-${index}">${item.unitPrice * item.quantity}</span>달란트
+        </td>
+        <td style="padding: 0.5rem; text-align: center;">
+          <button type="button" class="btn btn-sm btn-danger" style="padding: 0.2rem 0.5rem; font-size: 0.78rem;" onclick="removeRow(${index})">삭제</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    calculateTotals();
+  }
+
+  function changeQuantity(index, val) {
+    let qty = parseInt(val, 10);
+    if (isNaN(qty) || qty < 1) qty = 1;
+    currentOrderItems[index].quantity = qty;
+    const subtotalEl = document.getElementById(`row-subtotal-${index}`);
+    if (subtotalEl) {
+      subtotalEl.innerText = currentOrderItems[index].unitPrice * qty;
+    }
+    calculateTotals();
+  }
+
+  function removeRow(index) {
+    currentOrderItems.splice(index, 1);
+    renderModifyTable();
+  }
+
+  function handleAddSelectedRow() {
+    const select = document.getElementById('add-item-select');
+    const selectedOpt = select.options[select.selectedIndex];
+    if (!select.value) {
+      alert('추가할 품목을 선택해 주세요.');
+      return;
+    }
+    const itemId = parseInt(select.value, 10);
+    const itemName = selectedOpt.getAttribute('data-name');
+    const unitPrice = parseInt(selectedOpt.getAttribute('data-price'), 10);
+
+    const existing = currentOrderItems.find(it => it.itemId === itemId);
+    if (existing) {
+      existing.quantity += 1;
+    } else {
+      currentOrderItems.push({
+        itemId: itemId,
+        itemName: itemName,
+        unitPrice: unitPrice,
+        quantity: 1
+      });
+    }
+    select.value = '';
+    renderModifyTable();
+  }
+
+  function calculateTotals() {
+    let newTotal = 0;
+    currentOrderItems.forEach(it => {
+      newTotal += it.unitPrice * it.quantity;
+    });
+    document.getElementById('modal-new-total').innerText = newTotal;
+    const diff = newTotal - originalTotal;
+    const diffEl = document.getElementById('modal-diff-total');
+    if (diff > 0) {
+      diffEl.innerText = `+${diff}달란트 (추가 차감)`;
+      diffEl.style.color = '#dc2626';
+    } else if (diff < 0) {
+      diffEl.innerText = `${diff}달란트 (추가 환불)`;
+      diffEl.style.color = '#059669';
+    } else {
+      diffEl.innerText = `0달란트 (변동 없음)`;
+      diffEl.style.color = '#1e40af';
+    }
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.innerText = text;
+    return div.innerHTML;
+  }
+
   function closeModifyModal() {
     document.getElementById('modify-modal').classList.remove('show');
   }

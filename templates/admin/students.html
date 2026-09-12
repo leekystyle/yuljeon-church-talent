@@ -11,6 +11,7 @@
   <a href="/admin/items" class="btn btn-sm btn-outline">🛍️ 매점 물품/재고</a>
   <a href="/admin/orders" class="btn btn-sm btn-outline">🔄 구매내역 수정/반품</a>
   <a href="/admin/annual_reset" class="btn btn-sm btn-outline">⏳ 연간 총괄 초기화</a>
+  <a href="/kiosk" target="_blank" class="btn btn-sm btn-accent" style="font-weight: 700;">🛒 매점 키오스크 ↗</a>
   <a href="/auth/admin/logout" class="btn btn-sm btn-danger" style="margin-left: auto;">로그아웃</a>
 </div>
 
@@ -121,7 +122,12 @@
             <img src="{{ s.photo_url or '/static/uploads/profiles/default_avatar.svg' }}" alt="{{ s.name }}" style="width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border); background: white;">
           </td>
           <td><code>{{ s.student_code }}</code></td>
-          <td><strong>{{ s.name }}</strong></td>
+          <td>
+            <a href="/admin/students/{{ s.id }}/preview" target="_blank" title="학생 화면 새 창으로 미리보기" style="font-weight: 700; color: #1d4ed8; text-decoration: underline; display: inline-flex; align-items: center; gap: 0.25rem;">
+              {{ s.name }}
+              <span style="font-size: 0.8rem; text-decoration: none;">↗</span>
+            </a>
+          </td>
           <td><span class="badge badge-primary">{{ s.department or '미지정' }}</span></td>
           <td>{{ s.age ~ '세' if s.age else '-' }} / {{ '남' if s.gender == 'M' else ('여' if s.gender == 'F' else '-') }}</td>
           <td>
