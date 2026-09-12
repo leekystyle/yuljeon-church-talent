@@ -24,6 +24,9 @@
     </p>
   </div>
   <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+    <a href="/admin/settings#item-categories" class="btn btn-outline" style="border-color: #8b5cf6; color: #6d28d9; font-weight: 700;">
+      ⚙️ 상품 카테고리 관리 ↗
+    </a>
     <a href="/admin/items/csv/template" class="btn btn-outline" download>
       📥 CSV 양식 다운로드
     </a>
@@ -35,6 +38,7 @@
     </button>
   </div>
 </div>
+
 
 {% if request.query_params.get('csv_error') %}
 <div class="alert alert-danger" style="margin-bottom: 1.5rem; background-color: #fee2e2; border-left: 4px solid #ef4444; color: #991b1b; padding: 1rem;">
@@ -155,12 +159,14 @@
       </div>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem;">
         <div class="form-group">
-          <label class="form-label" for="item-cat">카테고리</label>
-          <select id="item-cat" name="category" class="form-control">
-            <option value="먹거리">먹거리</option>
-            <option value="문화생활">문화생활</option>
-            <option value="문구/완구">문구/완구</option>
-            <option value="기타">기타</option>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
+            <label class="form-label" for="item-cat" style="margin: 0;">분류 / 카테고리 <span style="color: red;">*</span></label>
+            <a href="/admin/settings#item-categories" target="_blank" style="font-size: 0.78rem; color: #6d28d9; text-decoration: underline;">⚙️ 설정 ↗</a>
+          </div>
+          <select id="item-cat" name="category" class="form-control" required>
+            {% for c in categories %}
+            <option value="{{ c.name }}">{{ c.name }}</option>
+            {% endfor %}
           </select>
         </div>
         <div class="form-group">
@@ -254,16 +260,16 @@
 
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem;">
         <div class="form-group">
-          <label class="form-label" for="edit-item-cat">분류 / 카테고리 <span style="color: red;">*</span></label>
-          <input type="text" id="edit-item-cat" name="category" class="form-control" list="category-options" placeholder="카테고리 선택 또는 직접 입력" required>
-          <datalist id="category-options">
-            <option value="먹거리">
-            <option value="문화생활">
-            <option value="문구/완구">
-            <option value="도서/학용품">
-            <option value="기타">
-          </datalist>
-          <small style="color: var(--text-muted); font-size: 0.78rem;">목록 선택 또는 새 분류명 직접 입력 가능</small>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
+            <label class="form-label" for="edit-item-cat" style="margin: 0;">분류 / 카테고리 <span style="color: red;">*</span></label>
+            <a href="/admin/settings#item-categories" target="_blank" style="font-size: 0.78rem; color: #6d28d9; text-decoration: underline;">⚙️ 설정 ↗</a>
+          </div>
+          <select id="edit-item-cat" name="category" class="form-control" required>
+            {% for c in categories %}
+            <option value="{{ c.name }}">{{ c.name }}</option>
+            {% endfor %}
+          </select>
+          <small style="color: var(--text-muted); font-size: 0.78rem;">환경설정에서 등록된 카테고리 중에서 선택</small>
         </div>
         <div class="form-group">
           <label class="form-label" for="edit-item-price">가격 (달란트) <span style="color: red;">*</span></label>
@@ -345,7 +351,19 @@
     document.getElementById('edit-item-form').action = '/admin/items/' + id + '/edit';
     document.getElementById('edit-item-code').value = code || '';
     document.getElementById('edit-item-name').value = name || '';
-    document.getElementById('edit-item-cat').value = category || '';
+
+    const catSelect = document.getElementById('edit-item-cat');
+    if (catSelect) {
+      catSelect.value = category || '';
+      if (category && catSelect.selectedIndex === -1) {
+        const opt = document.createElement('option');
+        opt.value = category;
+        opt.textContent = `${category} (기존 등록값)`;
+        catSelect.appendChild(opt);
+        catSelect.value = category;
+      }
+    }
+
     document.getElementById('edit-item-price').value = price || '';
     document.getElementById('edit-item-stock').value = stock || '';
     document.getElementById('edit-item-active').value = (active === 'true') ? 'true' : 'false';

@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from app.database import engine, Base, SessionLocal
 from app.models import (
     Student, TalentRule, TalentEarning, Item, Order, OrderItem, AnnualReset, AnnualSnapshot,
-    Department, RuleCategory, OrderAdjustmentLog, SystemConfig, set_system_config
+    Department, RuleCategory, ItemCategory, OrderAdjustmentLog, SystemConfig, set_system_config
 )
 from sqlalchemy import text
 from app.timezone import get_kst_now
@@ -356,7 +356,21 @@ def init_db_and_seed():
             db.commit()
             print("✓ [yuljeon-rule_categories] 기본 기준 분류 5건 등록 완료")
 
-        # 11. yuljeon-system_configs 시스템 환경설정 기본값
+        # 11. yuljeon-item_categories 매점 상품 초기 분류
+        if db.query(ItemCategory).count() == 0:
+            default_item_cats = [
+                ItemCategory(name="먹거리", display_order=1, is_active=True, created_at=get_kst_now()),
+                ItemCategory(name="문화생활", display_order=2, is_active=True, created_at=get_kst_now()),
+                ItemCategory(name="문구/완구", display_order=3, is_active=True, created_at=get_kst_now()),
+                ItemCategory(name="도서/학용품", display_order=4, is_active=True, created_at=get_kst_now()),
+                ItemCategory(name="기타", display_order=5, is_active=True, created_at=get_kst_now()),
+            ]
+            db.add_all(default_item_cats)
+            db.commit()
+            print("✓ [yuljeon-item_categories] 기본 상품 분류 5건 등록 완료")
+
+        # 12. yuljeon-system_configs 시스템 환경설정 기본값
+
         kiosk_timeout_cfg = db.query(SystemConfig).filter(SystemConfig.config_key == "kiosk_auto_logout_seconds").first()
         if not kiosk_timeout_cfg:
             set_system_config(

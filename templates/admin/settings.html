@@ -20,7 +20,7 @@
 <div style="margin-bottom: 1.5rem;">
   <h2 style="font-size: 1.7rem; font-weight: 800; color: #1e3a8a;">시스템 환경 설정</h2>
   <p style="color: var(--text-muted); font-size: 0.95rem;">
-    학생들의 <strong>소속부서</strong>와 달란트 지급 기준의 <strong>분류 카테고리</strong>를 등록, 수정 및 삭제 관리합니다.
+    학생들의 <strong>소속부서</strong>, 달란트 지급 기준의 <strong>분류 카테고리</strong>, 그리고 <strong>매점 물품 상품 분류(카테고리)</strong>를 등록, 수정 및 삭제 관리합니다.
   </p>
 </div>
 
@@ -36,13 +36,22 @@
 <div class="alert alert-success">✓ 지급 기준 분류가 수정되었습니다.</div>
 {% elif request.query_params.get('msg') == 'cat_deleted' %}
 <div class="alert alert-success">✓ 지급 기준 분류가 삭제되었습니다.</div>
+{% elif request.query_params.get('msg') == 'item_cat_created' %}
+<div class="alert alert-success">✓ 새 매점 상품 분류(카테고리)가 성공적으로 등록되었습니다. 매점 물품 등록/수정 시 즉시 선택할 수 있습니다.</div>
+{% elif request.query_params.get('msg') == 'item_cat_updated' %}
+<div class="alert alert-success">✓ 매점 상품 분류 정보가 수정되었습니다. (기존 해당 상품들의 카테고리도 자동 동기화되었습니다)</div>
+{% elif request.query_params.get('msg') == 'item_cat_deleted' %}
+<div class="alert alert-success">✓ 매점 상품 분류가 삭제되었습니다.</div>
 {% elif request.query_params.get('msg') == 'kiosk_updated' %}
 <div class="alert alert-success">✓ 매점 키오스크 환경설정(자동 로그아웃 시간)이 성공적으로 저장되었습니다.</div>
 {% elif request.query_params.get('error') == 'dept_duplicate' %}
 <div class="alert alert-danger">⚠️ 이미 동일한 이름의 소속부서가 존재합니다.</div>
 {% elif request.query_params.get('error') == 'cat_duplicate' %}
 <div class="alert alert-danger">⚠️ 이미 동일한 이름의 기준 분류가 존재합니다.</div>
+{% elif request.query_params.get('error') == 'item_cat_duplicate' %}
+<div class="alert alert-danger">⚠️ 이미 동일한 이름의 매점 상품 분류(카테고리)가 존재합니다.</div>
 {% endif %}
+
 
 <!-- 매점 키오스크 환경 설정 카드 -->
 <div class="card" style="border-top: 4px solid #f59e0b; margin-bottom: 2rem;">
@@ -215,6 +224,71 @@
       </table>
     </div>
   </div>
+
+  <!-- 3. 매점 상품 분류(카테고리) 설정 카드 -->
+  <div class="card" id="item-categories" style="border-top: 4px solid #8b5cf6;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+      <h3 style="font-size: 1.25rem; font-weight: 700; color: #6d28d9;">🛍️ 매점 상품 분류(카테고리) 설정</h3>
+      <span class="badge" style="background: #ede9fe; color: #6d28d9; font-weight: 700;">총 {{ item_categories | length }}개</span>
+    </div>
+    <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.2rem;">
+      매점 물품 등록/수정 시 선택하는 카테고리 목록으로 연동됩니다. (수정 시 기존 상품 카테고리도 자동 동기화)
+    </p>
+
+    <!-- 상품 분류 신규 등록 인라인 폼 -->
+    <form action="/admin/settings/item_categories/create" method="POST" style="display: flex; gap: 0.5rem; margin-bottom: 1.2rem; background: #f8fafc; padding: 0.8rem; border-radius: 8px; border: 1px solid var(--border);">
+      <input type="text" name="name" class="form-control" placeholder="새 상품 분류명 (예: 먹거리, 문화생활, 문구/완구)" required style="flex: 2; font-size: 0.9rem;">
+      <input type="number" name="display_order" class="form-control" placeholder="순서" value="1" min="1" max="99" style="width: 75px; font-size: 0.9rem;" title="표시 순서">
+      <button type="submit" class="btn btn-primary" style="white-space: nowrap; font-size: 0.85rem; font-weight: 700; background: #7c3aed; border-color: #7c3aed;">➕ 분류 추가</button>
+    </form>
+
+    <div class="table-responsive">
+      <table class="styled-table" style="font-size: 0.9rem;">
+        <thead>
+          <tr>
+            <th style="width: 60px; text-align: center;">순서</th>
+            <th>분류명</th>
+            <th style="width: 80px; text-align: center;">상태</th>
+            <th style="width: 130px; text-align: center;">관리</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for ic in item_categories %}
+          <tr>
+            <td style="text-align: center; color: var(--text-muted);">{{ ic.display_order }}</td>
+            <td style="font-weight: 700; color: #1e293b;">
+              <span class="badge" style="background: #f5f3ff; color: #7c3aed; border: 1px solid #ddd6fe; font-size: 0.88rem;">{{ ic.name }}</span>
+            </td>
+            <td style="text-align: center;">
+              {% if ic.is_active %}
+              <span class="badge badge-success">활성</span>
+              {% else %}
+              <span class="badge badge-warning">비활성</span>
+              {% endif %}
+            </td>
+            <td style="text-align: center;">
+              <div style="display: flex; gap: 0.3rem; justify-content: center;">
+                <button type="button" class="btn btn-sm btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;"
+                  data-id="{{ ic.id }}"
+                  data-name="{{ ic.name }}"
+                  data-order="{{ ic.display_order }}"
+                  data-active="{{ 'true' if ic.is_active else 'false' }}"
+                  onclick="handleEditItemCatClick(this)">✏️ 수정</button>
+                <form action="/admin/settings/item_categories/{{ ic.id }}/delete" method="POST" onsubmit="return confirm('\'{{ ic.name }}\' 상품 분류를 삭제하시겠습니까?');" style="display: inline;">
+                  <button type="submit" class="btn btn-sm btn-danger" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;">삭제</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">등록된 상품 분류가 없습니다.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>
 
 <!-- 부서 수정 모달 -->
@@ -270,6 +344,33 @@
     </form>
   </div>
 </div>
+
+<!-- 매점 상품 분류 수정 모달 -->
+<div id="item-cat-modal" class="modal-backdrop">
+  <div class="modal-content" style="max-width: 420px;">
+    <h3 style="margin-bottom: 0.4rem; color: #6d28d9;">매점 상품 분류 수정</h3>
+    <form id="item-cat-form" method="POST">
+      <div class="form-group">
+        <label class="form-label" for="edit-item-cat-name">상품 분류명 <span style="color:red;">*</span></label>
+        <input type="text" id="edit-item-cat-name" name="name" class="form-control" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="edit-item-cat-order">표시 순서</label>
+        <input type="number" id="edit-item-cat-order" name="display_order" class="form-control" min="1" max="99" required>
+      </div>
+      <div class="form-group" style="margin-top: 0.8rem;">
+        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+          <input type="checkbox" id="edit-item-cat-active" name="is_active" value="true">
+          <span style="font-weight: 600;">분류 활성화 (상품 등록/수정 목록 표출)</span>
+        </label>
+      </div>
+      <div style="display: flex; gap: 0.5rem; margin-top: 1.2rem;">
+        <button type="button" class="btn btn-outline" style="flex: 1;" onclick="closeEditItemCatModal()">취소</button>
+        <button type="submit" class="btn btn-primary" style="flex: 2; background: #7c3aed; border-color: #7c3aed;">수정 저장</button>
+      </div>
+    </form>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -312,9 +413,29 @@
     document.getElementById('cat-modal').classList.remove('show');
   }
 
+  function handleEditItemCatClick(btn) {
+    const id = btn.getAttribute('data-id');
+    const name = btn.getAttribute('data-name') || '';
+    const order = btn.getAttribute('data-order') || 1;
+    const isActive = btn.getAttribute('data-active') === 'true';
+    openEditItemCatModal(id, name, order, isActive);
+  }
+
+  function openEditItemCatModal(id, name, order, isActive) {
+    document.getElementById('item-cat-form').action = `/admin/settings/item_categories/${id}/edit`;
+    document.getElementById('edit-item-cat-name').value = name;
+    document.getElementById('edit-item-cat-order').value = order;
+    document.getElementById('edit-item-cat-active').checked = isActive;
+    document.getElementById('item-cat-modal').classList.add('show');
+  }
+  function closeEditItemCatModal() {
+    document.getElementById('item-cat-modal').classList.remove('show');
+  }
+
   function setKioskTimeout(sec) {
     const input = document.getElementById('kiosk-timeout-input');
     if (input) input.value = sec;
   }
 </script>
 {% endblock %}
+

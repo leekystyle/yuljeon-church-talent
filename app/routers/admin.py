@@ -12,7 +12,7 @@ from sqlalchemy import func
 from app.database import get_db
 from app.models import (
     Student, TalentRule, TalentEarning, Item, Order, OrderItem, AnnualReset, AnnualSnapshot,
-    Department, RuleCategory, OrderAdjustmentLog, SystemConfig, get_system_config, set_system_config
+    Department, RuleCategory, ItemCategory, OrderAdjustmentLog, SystemConfig, get_system_config, set_system_config
 )
 from app.config import ADMIN_PW
 from app.timezone import get_kst_now
@@ -653,7 +653,22 @@ async def delete_rule(rule_id: int, db: Session = Depends(get_db)):
 async def manage_items(request: Request, db: Session = Depends(get_db)):
     check_admin(request)
     items = db.query(Item).order_by(Item.id.asc()).all()
-    return templates.TemplateResponse("admin/items.html", {"request": request, "items": items})
+    categories = db.query(ItemCategory).filter(ItemCategory.is_active == True).order_by(ItemCategory.display_order.asc(), ItemCategory.id.asc()).all()
+    
+    # 카테고리가 비어있는 경우 기본 카테고리 자동 주입 보장
+    if not categories:
+        default_names = ["먹거리", "문화생활", "문구/완구", "도서/학용품", "기타"]
+        for idx, cname in enumerate(default_names, 1):
+            db.add(ItemCategory(name=cname, display_order=idx, is_active=True, created_at=get_kst_now()))
+        db.commit()
+        categories = db.query(ItemCategory).filter(ItemCategory.is_active == True).order_by(ItemCategory.display_order.asc(), ItemCategory.id.asc()).all()
+
+    return templates.TemplateResponse("admin/items.html", {
+        "request": request,
+        "items": items,
+        "categories": categories
+    })
+
 
 
 @router.post("/items/create")
@@ -1241,13 +1256,25 @@ async def settings_page(request: Request, db: Session = Depends(get_db)):
     check_admin(request)
     departments = db.query(Department).order_by(Department.display_order.asc(), Department.id.asc()).all()
     categories = db.query(RuleCategory).order_by(RuleCategory.display_order.asc(), RuleCategory.id.asc()).all()
+    item_categories = db.query(ItemCategory).order_by(ItemCategory.display_order.asc(), ItemCategory.id.asc()).all()
+
+    # 상품 카테고리가 비어있는 경우 기본 카테고리 자동 시딩 보장
+    if not item_categories:
+        default_names = ["먹거리", "문화생활", "문구/완구", "도서/학용품", "기타"]
+        for idx, cname in enumerate(default_names, 1):
+            db.add(ItemCategory(name=cname, display_order=idx, is_active=True, created_at=get_kst_now()))
+        db.commit()
+        item_categories = db.query(ItemCategory).order_by(ItemCategory.display_order.asc(), ItemCategory.id.asc()).all()
+
     kiosk_auto_logout_seconds = int(get_system_config(db, "kiosk_auto_logout_seconds", "10"))
     return templates.TemplateResponse("admin/settings.html", {
         "request": request,
         "departments": departments,
         "categories": categories,
+        "item_categories": item_categories,
         "kiosk_auto_logout_seconds": kiosk_auto_logout_seconds
     })
+
 
 
 @router.post("/settings/kiosk")
@@ -1370,3 +1397,66 @@ async def delete_category(cat_id: int, request: Request, db: Session = Depends(g
         db.delete(cat)
         db.commit()
     return RedirectResponse(url="/admin/settings?msg=cat_deleted", status_code=status.HTTP_303_SEE_OTHER)
+
+
+# -------------------------------------------------------------
+# 매점 물품/상품 분류(카테고리) 설정 CRUD
+# -------------------------------------------------------------
+@router.post("/settings/item_categories/create")
+async def create_item_category(
+    request: Request,
+    name: str = Form(...),
+    display_order: int = Form(1),
+    db: Session = Depends(get_db)
+):
+    check_admin(request)
+    clean_name = name.strip()
+    if db.query(ItemCategory).filter(ItemCategory.name == clean_name).first():
+        return RedirectResponse(url="/admin/settings?error=item_cat_duplicate#item-categories", status_code=status.HTTP_303_SEE_OTHER)
+    new_cat = ItemCategory(name=clean_name, display_order=display_order, is_active=True, created_at=get_kst_now())
+    db.add(new_cat)
+    db.commit()
+    return RedirectResponse(url="/admin/settings?msg=item_cat_created#item-categories", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/settings/item_categories/{cat_id}/edit")
+async def edit_item_category(
+    cat_id: int,
+    request: Request,
+    name: str = Form(...),
+    display_order: int = Form(1),
+    is_active: Optional[str] = Form(None),
+    db: Session = Depends(get_db)
+):
+    check_admin(request)
+    cat = db.query(ItemCategory).filter(ItemCategory.id == cat_id).first()
+    if cat:
+        clean_name = name.strip()
+        existing = db.query(ItemCategory).filter(ItemCategory.name == clean_name, ItemCategory.id != cat_id).first()
+        if existing:
+            return RedirectResponse(url="/admin/settings?error=item_cat_duplicate#item-categories", status_code=status.HTTP_303_SEE_OTHER)
+        
+        old_name = cat.name
+        cat.name = clean_name
+        cat.display_order = display_order
+        cat.is_active = (is_active == "true" or is_active is True)
+
+        # 기존 상품의 카테고리명도 함께 일괄 업데이트하여 일관성 유지
+        if old_name != clean_name:
+            items_to_update = db.query(Item).filter(Item.category == old_name).all()
+            for it in items_to_update:
+                it.category = clean_name
+
+        db.commit()
+    return RedirectResponse(url="/admin/settings?msg=item_cat_updated#item-categories", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/settings/item_categories/{cat_id}/delete")
+async def delete_item_category(cat_id: int, request: Request, db: Session = Depends(get_db)):
+    check_admin(request)
+    cat = db.query(ItemCategory).filter(ItemCategory.id == cat_id).first()
+    if cat:
+        db.delete(cat)
+        db.commit()
+    return RedirectResponse(url="/admin/settings?msg=item_cat_deleted#item-categories", status_code=status.HTTP_303_SEE_OTHER)
+

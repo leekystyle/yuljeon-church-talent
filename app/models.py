@@ -180,7 +180,19 @@ class RuleCategory(Base):
     created_at = Column(DateTime(timezone=True), default=get_kst_now, nullable=False)
 
 
+class ItemCategory(Base):
+    """매점 물품/상품 분류 설정 테이블 ('yuljeon-item_categories')"""
+    __tablename__ = "yuljeon-item_categories"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    name = Column(String(50), unique=True, nullable=False)                      # 상품 분류명 (먹거리, 문화생활, 문구/완구 등)
+    display_order = Column(Integer, default=0, nullable=False)                  # 표시 순서
+    is_active = Column(Boolean, default=True, nullable=False)                   # 활성화 여부
+    created_at = Column(DateTime(timezone=True), default=get_kst_now, nullable=False)
+
+
 class OrderAdjustmentLog(Base):
+
     """구매 내역 수정/반품/환불 조정 이력 감사 로그 테이블 ('yuljeon-order_adjustments')"""
     __tablename__ = "yuljeon-order_adjustments"
 
