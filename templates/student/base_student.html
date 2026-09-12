@@ -31,15 +31,16 @@
     .student-brand {
       display: inline-flex;
       align-items: center;
-      gap: 0.55rem;
+      gap: 0.65rem;
       font-weight: 900;
-      font-size: 1.35rem;
+      font-size: clamp(1.35rem, 5.2vw, 2.05rem);
       color: #1e3a8a;
       text-decoration: none;
       letter-spacing: -0.5px;
+      white-space: nowrap;
     }
     .church-logo-img {
-      height: 38px;
+      height: clamp(36px, 6vw, 46px);
       width: auto;
       object-fit: contain;
       filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.08));
@@ -98,13 +99,13 @@
   {% block head %}{% endblock %}
 </head>
 <body>
-  <!-- 학생 포털 전용 독립 내비게이션 바 (1층: 로고+율전달란트, 2층: 매점/기준 & 나가기/로그인) -->
+  <!-- 학생 포털 전용 독립 내비게이션 바 (1층: 로고+율전중앙교회 교회학교 달란트, 2층: 매점/기준 & 나가기/로그인) -->
   <header class="student-navbar">
-    <!-- 1층: 교회 로고 + 율전 달란트 (단독 한 줄) -->
+    <!-- 1층: 교회 로고 + 율전중앙교회 교회학교 달란트 (단독 한 줄, 150% 크기) -->
     <div class="student-navbar-top">
       <a href="/student/dashboard" class="student-brand">
         <img src="/static/images/church_logo.png" alt="율전중앙교회 로고" class="church-logo-img">
-        <span>율전 달란트</span>
+        <span>율전중앙교회 교회학교 달란트</span>
       </a>
     </div>
 
