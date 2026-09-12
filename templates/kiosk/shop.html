@@ -17,7 +17,11 @@
       <h2 style="font-size: 1.5rem; font-weight: 800;">{{ student.name }} 학생</h2>
     </div>
   </div>
-  <div style="display: flex; align-items: center; gap: 1.2rem;">
+  <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+    <div id="kiosk-timer-badge" style="background: rgba(220, 38, 38, 0.25); border: 1px solid rgba(254, 202, 202, 0.5); padding: 0.35rem 0.8rem; border-radius: 999px; font-weight: 700; font-size: 0.88rem; color: #fff; display: flex; align-items: center; gap: 0.35rem;">
+      <span>⏱️</span>
+      <span id="kiosk-countdown-sec" style="font-size: 1.15rem; color: #fef08a; font-weight: 800;">10</span>초 후 자동 로그아웃
+    </div>
     <div class="kiosk-talent-badge">
       <span>🪙 보유 달란트:</span>
       <span id="current-talent-val">{{ student.current_talent }}</span>
@@ -480,5 +484,39 @@
     }
     location.reload();
   }
+
+  {% if student %}
+  // 매점 키오스크 로그인 세션 10초 자동 로그아웃 타이머
+  let kioskAutoLogoutSeconds = 10;
+  const countdownEl = document.getElementById('kiosk-countdown-sec');
+
+  function resetKioskLogoutTimer() {
+    // 결제 완료 영수증 모달이 떠 있을 때는 영수증 자체 카운트다운(5초)에 위임
+    const receiptModal = document.getElementById('receipt-modal');
+    if (receiptModal && receiptModal.classList.contains('show')) {
+      return;
+    }
+    kioskAutoLogoutSeconds = 10;
+    if (countdownEl) countdownEl.innerText = kioskAutoLogoutSeconds;
+  }
+
+  // 화면 터치, 마우스 클릭, 키보드 입력 등 사용자 활동 감지 시 10초 리셋
+  ['click', 'touchstart', 'keydown'].forEach(evt => {
+    window.addEventListener(evt, resetKioskLogoutTimer, { passive: true });
+  });
+
+  const kioskLogoutInterval = setInterval(() => {
+    const receiptModal = document.getElementById('receipt-modal');
+    if (receiptModal && receiptModal.classList.contains('show')) {
+      return;
+    }
+    kioskAutoLogoutSeconds--;
+    if (countdownEl) countdownEl.innerText = Math.max(0, kioskAutoLogoutSeconds);
+    if (kioskAutoLogoutSeconds <= 0) {
+      clearInterval(kioskLogoutInterval);
+      location.href = '/kiosk/logout';
+    }
+  }, 1000);
+  {% endif %}
 </script>
 {% endblock %}
