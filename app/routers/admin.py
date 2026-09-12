@@ -237,6 +237,35 @@ async def edit_student(
     return RedirectResponse(url="/admin/students?msg=updated", status_code=status.HTTP_303_SEE_OTHER)
 
 
+@router.post("/students/batch-department")
+async def batch_update_student_department(
+    request: Request,
+    department: str = Form(...),
+    student_ids: List[int] = Form(...),
+    db: Session = Depends(get_db)
+):
+    """선택된 학생들의 소속 부서를 일괄 변경/지정"""
+    check_admin(request)
+    if not student_ids:
+        return RedirectResponse(url="/admin/students?error=no_students_selected", status_code=status.HTTP_303_SEE_OTHER)
+
+    target_dept = None if department in ["__NONE__", "", "미지정"] else department.strip()
+    updated_count = 0
+    students = db.query(Student).filter(Student.id.in_(student_ids)).all()
+    now = get_kst_now()
+    for s in students:
+        s.department = target_dept
+        s.updated_at = now
+        updated_count += 1
+
+    db.commit()
+    dept_name_display = target_dept if target_dept else "미지정"
+    encoded_dept = urllib.parse.quote(dept_name_display)
+    return RedirectResponse(
+        url=f"/admin/students?msg=batch_dept_success&count={updated_count}&target_dept={encoded_dept}",
+        status_code=status.HTTP_303_SEE_OTHER
+    )
+
 
 @router.get("/students/{student_id}/preview", response_class=HTMLResponse)
 async def preview_student_screen(

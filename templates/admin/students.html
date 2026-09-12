@@ -85,6 +85,18 @@
 </div>
 {% endif %}
 
+{% if request.query_params.get('msg') == 'batch_dept_success' %}
+<div class="alert alert-success" style="margin-bottom: 1.5rem; background-color: #ecfdf5; border-left: 4px solid #10b981; color: #065f46; padding: 1rem; border-radius: 8px;">
+  🎉 총 <strong>{{ request.query_params.get('count') }}명</strong>의 학생 소속 부서가 <strong>'{{ request.query_params.get('target_dept') }}'</strong>(으)로 성공적으로 일괄 지정되었습니다!
+</div>
+{% endif %}
+
+{% if request.query_params.get('error') == 'no_students_selected' %}
+<div class="alert alert-danger" style="margin-bottom: 1.5rem; background-color: #fee2e2; border-left: 4px solid #ef4444; color: #991b1b; padding: 1rem; border-radius: 8px;">
+  ⚠️ 소속 부서를 일괄 변경할 학생을 1명 이상 선택해 주세요.
+</div>
+{% endif %}
+
 <!-- 검색 및 부서 필터 -->
 <div class="card" style="padding: 1rem 1.2rem; margin-bottom: 1.5rem;">
   <form method="GET" action="/admin/students" style="display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap;">
@@ -106,12 +118,46 @@
   </form>
 </div>
 
+<!-- 복수 학생 일괄 부서 지정 액션 바 -->
+<div class="card" style="padding: 1rem 1.2rem; margin-bottom: 1.5rem; background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: 10px;">
+  <form id="batch-dept-form" action="/admin/students/batch-department" method="POST" onsubmit="return handleBatchDeptSubmit(event);" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <div style="display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap;">
+      <span style="font-weight: 700; color: #1e3a8a; font-size: 0.95rem; display: flex; align-items: center; gap: 0.35rem;">
+        ☑️ 선택된 학생: <span id="selected-student-count" style="color: #2563eb; font-size: 1.2rem; font-weight: 800;">0</span>명
+      </span>
+      <button type="button" class="btn btn-sm btn-outline" onclick="selectAllVisibleStudents(true)" style="background: white; font-size: 0.82rem; padding: 0.35rem 0.65rem;">
+        전체 선택
+      </button>
+      <button type="button" class="btn btn-sm btn-outline" onclick="selectAllVisibleStudents(false)" style="background: white; font-size: 0.82rem; padding: 0.35rem 0.65rem;">
+        선택 해제
+      </button>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+      <span style="font-size: 0.9rem; font-weight: 700; color: #1e3a8a;">➡️ 지정할 부서:</span>
+      <select name="department" id="batch-target-dept" class="form-control" style="width: auto; min-width: 160px; font-weight: 600; padding: 0.45rem 0.8rem; background: white;">
+        <option value="">-- 부서 선택 --</option>
+        {% for d in departments %}
+        <option value="{{ d }}">{{ d }}</option>
+        {% endfor %}
+        <option value="__NONE__">(소속 미지정/해제)</option>
+      </select>
+      <button type="submit" id="batch-submit-btn" class="btn btn-primary" style="font-weight: 700; padding: 0.5rem 1.1rem; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);">
+        🏷️ 선택 학생 일괄 부서 지정
+      </button>
+    </div>
+  </form>
+</div>
+
 <!-- 학생 목록 테이블 -->
 <div class="card">
   <div class="table-responsive">
     <table class="styled-table">
       <thead>
         <tr>
+          <th style="width: 45px; text-align: center;">
+            <input type="checkbox" id="check-all-students" onclick="toggleAllStudents(this)" title="전체 선택/해제" style="cursor: pointer; width: 18px; height: 18px;">
+          </th>
           <th>사진</th>
           <th>고유 ID</th>
           <th>성명</th>
@@ -126,6 +172,9 @@
       <tbody>
         {% for s in students %}
         <tr>
+          <td style="text-align: center;">
+            <input type="checkbox" name="student_ids" value="{{ s.id }}" class="student-select-cb" form="batch-dept-form" onchange="updateSelectedBatchCount()" style="cursor: pointer; width: 18px; height: 18px;">
+          </td>
           <td>
             <img src="{{ s.photo_url or '/static/uploads/profiles/default_avatar.svg' }}" alt="{{ s.name }}" style="width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border); background: white;">
           </td>
@@ -399,6 +448,71 @@
         input.value = '';
       }
     }
+  }
+
+  // --- 학생 복수 선택 및 일괄 부서 지정 JS 함수 ---
+  function toggleAllStudents(masterCb) {
+    const cbs = document.querySelectorAll('.student-select-cb');
+    cbs.forEach(cb => cb.checked = masterCb.checked);
+    updateSelectedBatchCount();
+  }
+
+  function selectAllVisibleStudents(checked) {
+    const cbs = document.querySelectorAll('.student-select-cb');
+    cbs.forEach(cb => cb.checked = checked);
+    const masterCb = document.getElementById('check-all-students');
+    if (masterCb) masterCb.checked = checked;
+    updateSelectedBatchCount();
+  }
+
+  function updateSelectedBatchCount() {
+    const checkedCbs = document.querySelectorAll('.student-select-cb:checked');
+    const count = checkedCbs.length;
+    const countDisplay = document.getElementById('selected-student-count');
+    if (countDisplay) {
+      countDisplay.textContent = count;
+    }
+    const allCbs = document.querySelectorAll('.student-select-cb');
+    const masterCb = document.getElementById('check-all-students');
+    if (masterCb) {
+      masterCb.checked = (allCbs.length > 0 && count === allCbs.length);
+    }
+  }
+
+  function handleBatchDeptSubmit(e) {
+    const checkedCbs = document.querySelectorAll('.student-select-cb:checked');
+    if (checkedCbs.length === 0) {
+      alert('⚠️ 소속 부서를 일괄 변경할 학생을 1명 이상 선택해 주세요.');
+      return false;
+    }
+
+    const deptSelect = document.getElementById('batch-target-dept');
+    const selectedDept = deptSelect.value;
+    if (!selectedDept) {
+      alert('⚠️ 일괄 지정할 소속 부서를 선택해 주세요.');
+      deptSelect.focus();
+      return false;
+    }
+
+    const deptText = deptSelect.options[deptSelect.selectedIndex].text;
+    const confirmMsg = `선택한 ${checkedCbs.length}명의 학생 소속 부서를\n'${deptText}'(으)로 일괄 변경하시겠습니까?`;
+    if (!confirm(confirmMsg)) {
+      return false;
+    }
+
+    const form = document.getElementById('batch-dept-form');
+    // 기존 동적 input 제거
+    form.querySelectorAll('input.dynamic-student-id').forEach(el => el.remove());
+    checkedCbs.forEach(cb => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'student_ids';
+      input.value = cb.value;
+      input.className = 'dynamic-student-id';
+      form.appendChild(input);
+    });
+
+    return true;
   }
 </script>
 {% endblock %}
