@@ -46,6 +46,30 @@
 </div>
 {% endif %}
 
+{% if request.query_params.get('msg') == 'updated' %}
+<div class="alert alert-success" style="margin-bottom: 1.5rem;">
+  ✅ 학생 정보가 성공적으로 수정되었습니다!
+</div>
+{% endif %}
+
+{% if request.query_params.get('msg') == 'created' %}
+<div class="alert alert-success" style="margin-bottom: 1.5rem;">
+  🎉 신규 학생이 등록되었습니다! (초기 비밀번호: 0000)
+</div>
+{% endif %}
+
+{% if request.query_params.get('msg') == 'activated' %}
+<div class="alert alert-success" style="margin-bottom: 1.5rem;">
+  ✨ 학생 계정이 활성화 승인되었습니다!
+</div>
+{% endif %}
+
+{% if request.query_params.get('msg') == 'pw_reset' %}
+<div class="alert alert-success" style="margin-bottom: 1.5rem;">
+  🔑 학생의 비밀번호가 0000으로 초기화되었습니다!
+</div>
+{% endif %}
+
 <!-- 검색 및 부서 필터 -->
 <div class="card" style="padding: 1rem 1.2rem; margin-bottom: 1.5rem;">
   <form method="GET" action="/admin/students" style="display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap;">
@@ -110,6 +134,7 @@
           </td>
           <td>
             <div style="display: flex; gap: 0.3rem;">
+              <button type="button" class="btn btn-sm btn-primary" onclick="openEditStudentModal('{{ s.id }}', '{{ s.student_code }}', '{{ s.name }}', '{{ s.department or '' }}', '{{ s.age or '' }}', '{{ s.gender or '' }}', '{{ s.phone or '' }}', '{{ s.email or '' }}', '{{ s.photo_url or '' }}', {{ 'true' if s.is_active else 'false' }})">✏️ 수정</button>
               {% if not s.is_active %}
               <form action="/admin/students/{{ s.id }}/activate" method="POST" onsubmit="return confirm('{{ s.name }} 학생 계정을 활성화 승인하시겠습니까?');">
                 <button type="submit" class="btn btn-sm btn-accent">승인</button>
@@ -219,6 +244,85 @@
     </form>
   </div>
 </div>
+
+<!-- 기존 학생 정보 수정 모달 -->
+<div id="student-edit-modal" class="modal-backdrop">
+  <div class="modal-content" style="max-width: 520px;">
+    <h3 style="margin-bottom: 0.4rem; color: #1e3a8a;">✏️ 학생 정보 수정</h3>
+    <p id="edit-modal-subtitle" style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1.2rem;"></p>
+
+    <form id="student-edit-form" method="POST" enctype="multipart/form-data">
+      <div style="display: flex; gap: 1.2rem; align-items: center; margin-bottom: 1rem; background: #f8fafc; padding: 0.8rem; border-radius: 8px; border: 1px solid var(--border);">
+        <img id="edit-photo-preview" src="" alt="사진 미리보기" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 2px solid #3b82f6; background: white;">
+        <div style="flex: 1;">
+          <label class="form-label" for="edit-photo" style="margin-bottom: 0.2rem; font-size: 0.85rem;">새로운 프로필 사진으로 교체</label>
+          <input type="file" id="edit-photo" name="photo" class="form-control" style="font-size: 0.85rem;" accept="image/*">
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem;">
+        <div class="form-group">
+          <label class="form-label" for="edit-code">고유 ID (변경불가)</label>
+          <input type="text" id="edit-code" class="form-control" readonly style="background-color: #f1f5f9; cursor: not-allowed; font-weight: bold;">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="edit-name">학생 성명 <span style="color: red;">*</span></label>
+          <input type="text" id="edit-name" name="name" class="form-control" required>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem;">
+        <div class="form-group">
+          <label class="form-label" for="edit-dept">소속 부서</label>
+          <select id="edit-dept" name="department" class="form-control">
+            <option value="">(미지정)</option>
+            <option value="유치부">유치부</option>
+            <option value="아동부">아동부</option>
+            <option value="청소년부">청소년부</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="edit-age">나이</label>
+          <input type="number" id="edit-age" name="age" class="form-control" min="0" max="100">
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem;">
+        <div class="form-group">
+          <label class="form-label" for="edit-gender">성별</label>
+          <select id="edit-gender" name="gender" class="form-control">
+            <option value="">(미지정)</option>
+            <option value="M">남</option>
+            <option value="F">여</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="edit-status">계정 상태</label>
+          <select id="edit-status" name="is_active" class="form-control">
+            <option value="true">활성화 (정상 이용)</option>
+            <option value="false">비활성화 (로그인/쇼핑 차단)</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem;">
+        <div class="form-group">
+          <label class="form-label" for="edit-phone">연락처</label>
+          <input type="tel" id="edit-phone" name="phone" class="form-control" placeholder="010-0000-0000">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="edit-email">이메일</label>
+          <input type="email" id="edit-email" name="email" class="form-control" placeholder="user@domain.com">
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 0.5rem; margin-top: 1.2rem;">
+        <button type="button" class="btn btn-outline" style="flex: 1;" onclick="closeEditStudentModal()">취소</button>
+        <button type="submit" class="btn btn-primary" style="flex: 2;">수정 사항 저장</button>
+      </div>
+    </form>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -234,6 +338,23 @@
   }
   function closeStudentCsvModal() {
     document.getElementById('student-csv-modal').classList.remove('show');
+  }
+  function openEditStudentModal(id, code, name, dept, age, gender, phone, email, photoUrl, isActive) {
+    document.getElementById('edit-modal-subtitle').textContent = name + ' (' + code + ') 학생의 기본 정보 및 상태를 수정합니다.';
+    document.getElementById('edit-photo-preview').src = photoUrl || '/static/uploads/profiles/default_avatar.svg';
+    document.getElementById('edit-code').value = code;
+    document.getElementById('edit-name').value = name;
+    document.getElementById('edit-dept').value = dept || '';
+    document.getElementById('edit-age').value = age || '';
+    document.getElementById('edit-gender').value = gender || '';
+    document.getElementById('edit-phone').value = phone || '';
+    document.getElementById('edit-email').value = email || '';
+    document.getElementById('edit-status').value = isActive ? 'true' : 'false';
+    document.getElementById('student-edit-form').action = '/admin/students/' + id + '/edit';
+    document.getElementById('student-edit-modal').classList.add('show');
+  }
+  function closeEditStudentModal() {
+    document.getElementById('student-edit-modal').classList.remove('show');
   }
 </script>
 {% endblock %}

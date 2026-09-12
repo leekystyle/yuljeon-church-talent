@@ -166,6 +166,47 @@ async def reset_student_password(student_id: int, db: Session = Depends(get_db))
     return RedirectResponse(url="/admin/students?msg=pw_reset", status_code=status.HTTP_303_SEE_OTHER)
 
 
+@router.post("/students/{student_id}/edit")
+async def edit_student(
+    student_id: int,
+    name: str = Form(...),
+    department: Optional[str] = Form(None),
+    age: Optional[int] = Form(None),
+    gender: Optional[str] = Form(None),
+    phone: Optional[str] = Form(None),
+    email: Optional[str] = Form(None),
+    is_active: bool = Form(True),
+    photo: Optional[UploadFile] = File(None),
+    db: Session = Depends(get_db)
+):
+    """기존 등록된 학생 정보(성명, 소속부서, 나이, 성별, 연락처, 이메일, 사진, 계정상태) 수정"""
+    student = db.query(Student).filter(Student.id == student_id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="해당 학생을 찾을 수 없습니다.")
+
+    student.name = name.strip()
+    student.department = department.strip() if department else None
+    student.age = age
+    student.gender = gender if gender in ["M", "F"] else None
+    student.phone = phone.strip() if phone else None
+    student.email = email.strip() if email else None
+    student.is_active = is_active
+    student.updated_at = get_kst_now()
+
+    if photo and photo.filename:
+        filename = f"{student.student_code}_{photo.filename.replace(' ', '_')}"
+        upload_dir = "static/uploads/profiles"
+        os.makedirs(upload_dir, exist_ok=True)
+        file_path = os.path.join(upload_dir, filename)
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(photo.file, buffer)
+        student.photo_url = f"/static/uploads/profiles/{filename}"
+
+    db.commit()
+    return RedirectResponse(url="/admin/students?msg=updated", status_code=status.HTTP_303_SEE_OTHER)
+
+
+
 @router.get("/students/csv/template")
 async def download_students_csv_template(request: Request):
     """학생 등록 CSV 양식 다운로드"""
