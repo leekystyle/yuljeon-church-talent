@@ -20,8 +20,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
 COPY . .
 
 # 정적 파일 및 업로드 디렉터리 보장
-RUN mkdir -p /app/static/uploads/profiles
+RUN mkdir -p /app/static/uploads/profiles /app/static/uploads/items /app/static/images
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]

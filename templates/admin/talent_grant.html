@@ -24,6 +24,27 @@
       </p>
     </div>
 
+    <div style="display: flex; justify-content: center; gap: 0.6rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+      <a href="/admin/talent/csv/template" class="btn btn-outline btn-sm" download>
+        📥 CSV 양식 다운로드
+      </a>
+      <button type="button" class="btn btn-outline btn-sm" onclick="openTalentCsvModal()">
+        📤 CSV 일괄 실적 지급
+      </button>
+    </div>
+
+    {% if request.query_params.get('csv_error') %}
+    <div class="alert alert-danger" style="margin-bottom: 1.5rem; background-color: #fee2e2; border-left: 4px solid #ef4444; color: #991b1b; padding: 1rem;">
+      <strong>⚠️ CSV 업로드 검증 오류:</strong> {{ request.query_params.get('csv_error') }}
+    </div>
+    {% endif %}
+
+    {% if request.query_params.get('msg') == 'csv_success' %}
+    <div class="alert alert-success" style="margin-bottom: 1.5rem;">
+      🎉 총 {{ request.query_params.get('count') }}건의 달란트 지급 실적이 CSV를 통해 일괄 반영되었습니다!
+    </div>
+    {% endif %}
+
     {% if request.query_params.get('msg') == 'granted' %}
     <div class="alert alert-success">
       🎉 달란트가 성공적으로 지급되었습니다! 학생 잔액에 즉시 반영되었습니다.
@@ -72,6 +93,38 @@
     </form>
   </div>
 </div>
+
+<!-- 달란트 CSV 일괄 지급 모달 -->
+<div id="talent-csv-modal" class="modal-backdrop">
+  <div class="modal-content">
+    <h3 style="margin-bottom: 0.4rem; color: #1e3a8a;">🪙 달란트 일괄 실적 지급 (CSV)</h3>
+    <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1.2rem;">
+      CSV 양식에 대상 학생 ID와 점수, 사유를 입력하여 업로드하면 대량으로 동시 지급됩니다.
+    </p>
+
+    <div style="background: #f1f5f9; padding: 0.9rem; border-radius: 8px; margin-bottom: 1.2rem; font-size: 0.85rem;">
+      <p style="font-weight: bold; margin-bottom: 0.3rem;">📌 작성 안내:</p>
+      <ul style="padding-left: 1.2rem; margin: 0; color: #475569;">
+        <li><strong>학생고유ID, 달란트점수, 지급사유, 지급자</strong> 4개 필드 모두 필수입니다.</li>
+        <li>학생고유ID는 시스템에 존재하는 코드(예: S001)여야 합니다.</li>
+        <li>달란트점수는 1 이상의 양의 정수여야 합니다.</li>
+        <li>오류 행이 1개라도 있을 시 전체 작업이 안전하게 롤백됩니다.</li>
+      </ul>
+    </div>
+
+    <form action="/admin/talent/csv/upload" method="POST" enctype="multipart/form-data">
+      <div class="form-group">
+        <label class="form-label" for="talent_csv_file">CSV 파일 선택 (.csv) <span style="color: red;">*</span></label>
+        <input type="file" id="talent_csv_file" name="file" class="form-control" accept=".csv" required>
+      </div>
+
+      <div style="display: flex; gap: 0.5rem; margin-top: 1.2rem;">
+        <button type="button" class="btn btn-outline" style="flex: 1;" onclick="closeTalentCsvModal()">취소</button>
+        <button type="submit" class="btn btn-primary" style="flex: 2;">CSV 일괄 지급 실행</button>
+      </div>
+    </form>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -82,6 +135,13 @@
       document.getElementById('points').value = opt.getAttribute('data-points');
       document.getElementById('reason').value = opt.getAttribute('data-title');
     }
+  }
+
+  function openTalentCsvModal() {
+    document.getElementById('talent-csv-modal').classList.add('show');
+  }
+  function closeTalentCsvModal() {
+    document.getElementById('talent-csv-modal').classList.remove('show');
   }
 </script>
 {% endblock %}

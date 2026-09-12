@@ -21,10 +21,30 @@
       신규 학생 직접 등록, 가입 신청 계정 활성화, 비밀번호 0000 초기화가 가능합니다.
     </p>
   </div>
-  <button class="btn btn-primary" onclick="openStudentModal()">
-    + 신규 학생 직접 등록
-  </button>
+  <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+    <a href="/admin/students/csv/template" class="btn btn-outline" download>
+      📥 CSV 양식 다운로드
+    </a>
+    <button class="btn btn-outline" onclick="openStudentCsvModal()">
+      📤 CSV 일괄 등록
+    </button>
+    <button class="btn btn-primary" onclick="openStudentModal()">
+      + 신규 학생 직접 등록
+    </button>
+  </div>
 </div>
+
+{% if request.query_params.get('csv_error') %}
+<div class="alert alert-danger" style="margin-bottom: 1.5rem; background-color: #fee2e2; border-left: 4px solid #ef4444; color: #991b1b; padding: 1rem;">
+  <strong>⚠️ CSV 업로드 검증 오류:</strong> {{ request.query_params.get('csv_error') }}
+</div>
+{% endif %}
+
+{% if request.query_params.get('msg') == 'csv_success' %}
+<div class="alert alert-success" style="margin-bottom: 1.5rem;">
+  🎉 총 {{ request.query_params.get('count') }}명의 학생 데이터가 CSV 파일을 통해 성공적으로 일괄 등록되었습니다!
+</div>
+{% endif %}
 
 <!-- 검색 및 부서 필터 -->
 <div class="card" style="padding: 1rem 1.2rem; margin-bottom: 1.5rem;">
@@ -167,6 +187,38 @@
     </form>
   </div>
 </div>
+
+<!-- 학생 CSV 일괄 등록 모달 -->
+<div id="student-csv-modal" class="modal-backdrop">
+  <div class="modal-content">
+    <h3 style="margin-bottom: 0.4rem; color: #1e3a8a;">📁 학생 일괄 등록 (CSV)</h3>
+    <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1.2rem;">
+      다운로드한 CSV 양식에 학생 명단을 입력한 후 업로드해 주세요. 오류가 발생한 경우 자동 롤백되어 안전합니다.
+    </p>
+
+    <div style="background: #f1f5f9; padding: 0.9rem; border-radius: 8px; margin-bottom: 1.2rem; font-size: 0.85rem;">
+      <p style="font-weight: bold; margin-bottom: 0.3rem;">📌 필수 및 작성 안내:</p>
+      <ul style="padding-left: 1.2rem; margin: 0; color: #475569;">
+        <li><strong>이름</strong>은 필수 입력 항목입니다.</li>
+        <li><strong>고유ID</strong>를 비워둘 경우 S001부터 자동 채번됩니다.</li>
+        <li>모든 학생의 초기 비밀번호는 <strong>0000</strong>으로 일괄 설정됩니다.</li>
+        <li>엑셀 저장 시 UTF-8 또는 일반 CSV 형식 모두 지원합니다.</li>
+      </ul>
+    </div>
+
+    <form action="/admin/students/csv/upload" method="POST" enctype="multipart/form-data">
+      <div class="form-group">
+        <label class="form-label" for="csv_file">CSV 파일 선택 (.csv) <span style="color: red;">*</span></label>
+        <input type="file" id="csv_file" name="file" class="form-control" accept=".csv" required>
+      </div>
+
+      <div style="display: flex; gap: 0.5rem; margin-top: 1.2rem;">
+        <button type="button" class="btn btn-outline" style="flex: 1;" onclick="closeStudentCsvModal()">취소</button>
+        <button type="submit" class="btn btn-primary" style="flex: 2;">CSV 일괄 등록 실행</button>
+      </div>
+    </form>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -176,6 +228,12 @@
   }
   function closeStudentModal() {
     document.getElementById('student-modal').classList.remove('show');
+  }
+  function openStudentCsvModal() {
+    document.getElementById('student-csv-modal').classList.add('show');
+  }
+  function closeStudentCsvModal() {
+    document.getElementById('student-csv-modal').classList.remove('show');
   }
 </script>
 {% endblock %}

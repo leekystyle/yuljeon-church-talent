@@ -1,8 +1,11 @@
 import os
 import shutil
+import csv
+import io
+import urllib.parse
 from typing import Optional, List
 from fastapi import APIRouter, Request, Depends, Form, UploadFile, File, status, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -15,6 +18,16 @@ from app.timezone import get_kst_now
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Jinja2Templates(directory="templates")
+
+
+def decode_csv_content(content_bytes: bytes) -> str:
+    """한국어 엑셀 CSV 인코딩(UTF-8 BOM, CP949, EUC-KR, UTF-8) 자동 감지 디코딩"""
+    for encoding in ["utf-8-sig", "cp949", "euc-kr", "utf-8"]:
+        try:
+            return content_bytes.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    return content_bytes.decode("utf-8", errors="replace")
 
 
 def check_admin(request: Request):
@@ -153,6 +166,145 @@ async def reset_student_password(student_id: int, db: Session = Depends(get_db))
     return RedirectResponse(url="/admin/students?msg=pw_reset", status_code=status.HTTP_303_SEE_OTHER)
 
 
+@router.get("/students/csv/template")
+async def download_students_csv_template(request: Request):
+    """학생 등록 CSV 양식 다운로드"""
+    check_admin(request)
+    headers = ["고유ID", "이름", "소속", "나이", "성별", "전화번호", "이메일"]
+    sample_rows = [
+        ["S004", "홍길동", "아동부", "11", "남", "010-1234-5678", "hong@church.org"],
+        ["S005", "이영희", "유치부", "6", "여", "010-9876-5432", ""],
+    ]
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(headers)
+    for r in sample_rows:
+        writer.writerow(r)
+    csv_bytes = ("\ufeff" + output.getvalue()).encode("utf-8")
+    return Response(
+        content=csv_bytes,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": "attachment; filename=students_template.csv"}
+    )
+
+
+@router.post("/students/csv/upload")
+async def upload_students_csv(
+    request: Request,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    """학생 일괄 등록 CSV 파일 업로드 및 형식 검증 (단일 트랜잭션 롤백 보장)"""
+    check_admin(request)
+    content_bytes = await file.read()
+    if not content_bytes:
+        msg = urllib.parse.quote("업로드된 CSV 파일이 비어 있습니다.")
+        return RedirectResponse(url=f"/admin/students?csv_error={msg}", status_code=status.HTTP_303_SEE_OTHER)
+
+    content = decode_csv_content(content_bytes)
+    reader = csv.reader(io.StringIO(content))
+    rows = [row for row in reader if any(cell.strip() for cell in row)]
+
+    if not rows:
+        msg = urllib.parse.quote("유효한 데이터 행이 존재하지 않습니다.")
+        return RedirectResponse(url=f"/admin/students?csv_error={msg}", status_code=status.HTTP_303_SEE_OTHER)
+
+    data_rows = rows[1:]
+    if not data_rows:
+        msg = urllib.parse.quote("헤더 아래에 등록할 학생 데이터 행이 없습니다.")
+        return RedirectResponse(url=f"/admin/students?csv_error={msg}", status_code=status.HTTP_303_SEE_OTHER)
+
+    errors = []
+    new_students = []
+    seen_codes = set()
+
+    for idx, row in enumerate(data_rows, start=2):
+        if len(row) < 2:
+            errors.append(f"{idx}행: 최소 [고유ID, 이름] 컬럼이 필요합니다.")
+            continue
+
+        code_raw = row[0].strip() if len(row) > 0 else ""
+        name_raw = row[1].strip() if len(row) > 1 else ""
+        dept_raw = row[2].strip() if len(row) > 2 else None
+        age_raw = row[3].strip() if len(row) > 3 else None
+        gender_raw = row[4].strip() if len(row) > 4 else None
+        phone_raw = row[5].strip() if len(row) > 5 else None
+        email_raw = row[6].strip() if len(row) > 6 else None
+
+        if not name_raw:
+            errors.append(f"{idx}행: 이름은 필수 입력값입니다.")
+            continue
+
+        # 나이 형식 검증
+        age = None
+        if age_raw:
+            try:
+                age = int(age_raw)
+                if age < 0 or age > 100:
+                    errors.append(f"{idx}행: 나이는 0~100 사이여야 합니다.")
+                    continue
+            except ValueError:
+                errors.append(f"{idx}행: 나이 '{age_raw}'는 올바른 숫자가 아닙니다.")
+                continue
+
+        # 고유 ID 처리 및 중복 검증
+        if code_raw:
+            if code_raw in seen_codes:
+                errors.append(f"{idx}행: CSV 내 중복된 고유ID '{code_raw}'가 존재합니다.")
+                continue
+            if db.query(Student).filter(Student.student_code == code_raw).first():
+                errors.append(f"{idx}행: DB에 이미 등록된 고유ID '{code_raw}'입니다.")
+                continue
+            student_code = code_raw
+        else:
+            count = db.query(Student).count() + len(new_students)
+            student_code = f"S{count + 1:03d}"
+            while db.query(Student).filter(Student.student_code == student_code).first() or student_code in seen_codes:
+                count += 1
+                student_code = f"S{count + 1:03d}"
+
+        seen_codes.add(student_code)
+
+        if gender_raw in ["남", "남자", "M", "m"]:
+            gender = "M"
+        elif gender_raw in ["여", "여자", "F", "f"]:
+            gender = "F"
+        else:
+            gender = gender_raw if gender_raw else None
+
+        student = Student(
+            student_code=student_code,
+            name=name_raw,
+            password_hash="0000",
+            photo_url="/static/uploads/profiles/default_avatar.svg",
+            department=dept_raw if dept_raw else None,
+            age=age,
+            gender=gender,
+            phone=phone_raw if phone_raw else None,
+            email=email_raw if email_raw else None,
+            current_talent=0,
+            total_earned=0,
+            total_spent=0,
+            is_active=True,
+            created_at=get_kst_now(),
+            updated_at=get_kst_now()
+        )
+        new_students.append(student)
+
+    if errors:
+        db.rollback()
+        error_msg = "; ".join(errors[:5])
+        if len(errors) > 5:
+            error_msg += f" 외 {len(errors)-5}건 오류"
+        msg = urllib.parse.quote(f"CSV 형식 검증 실패 ({len(errors)}건): {error_msg}")
+        return RedirectResponse(url=f"/admin/students?csv_error={msg}", status_code=status.HTTP_303_SEE_OTHER)
+
+    db.add_all(new_students)
+    db.commit()
+    return RedirectResponse(url=f"/admin/students?msg=csv_success&count={len(new_students)}", status_code=status.HTTP_303_SEE_OTHER)
+
+
+
 # -------------------------------------------------------------
 # 2. 학생의 달란트 실적 등록
 # -------------------------------------------------------------
@@ -196,6 +348,122 @@ async def grant_talent(
     db.add(earning)
     db.commit()
     return RedirectResponse(url="/admin/talent/grant?msg=granted", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.get("/talent/csv/template")
+async def download_talent_csv_template(request: Request):
+    """달란트 일괄 지급 CSV 양식 다운로드"""
+    check_admin(request)
+    headers = ["학생고유ID", "달란트점수", "지급사유", "지급자"]
+    sample_rows = [
+        ["S001", "2", "주일예배 출석 모범", "김철수"],
+        ["S002", "5", "성경 암송 10절 완송", "교육부"],
+    ]
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(headers)
+    for r in sample_rows:
+        writer.writerow(r)
+    csv_bytes = ("\ufeff" + output.getvalue()).encode("utf-8")
+    return Response(
+        content=csv_bytes,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": "attachment; filename=talent_grant_template.csv"}
+    )
+
+
+@router.post("/talent/csv/upload")
+async def upload_talent_csv(
+    request: Request,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    """달란트 일괄 지급 CSV 파일 업로드 및 형식 검증 (단일 트랜잭션 롤백 보장)"""
+    check_admin(request)
+    content_bytes = await file.read()
+    if not content_bytes:
+        msg = urllib.parse.quote("업로드된 CSV 파일이 비어 있습니다.")
+        return RedirectResponse(url=f"/admin/talent/grant?csv_error={msg}", status_code=status.HTTP_303_SEE_OTHER)
+
+    content = decode_csv_content(content_bytes)
+    reader = csv.reader(io.StringIO(content))
+    rows = [row for row in reader if any(cell.strip() for cell in row)]
+
+    if not rows:
+        msg = urllib.parse.quote("유효한 데이터 행이 존재하지 않습니다.")
+        return RedirectResponse(url=f"/admin/talent/grant?csv_error={msg}", status_code=status.HTTP_303_SEE_OTHER)
+
+    data_rows = rows[1:]
+    if not data_rows:
+        msg = urllib.parse.quote("지급할 실적 데이터 행이 없습니다.")
+        return RedirectResponse(url=f"/admin/talent/grant?csv_error={msg}", status_code=status.HTTP_303_SEE_OTHER)
+
+    errors = []
+    grant_tasks = []
+
+    for idx, row in enumerate(data_rows, start=2):
+        if len(row) < 4:
+            errors.append(f"{idx}행: [학생고유ID, 달란트점수, 지급사유, 지급자] 4개 항목이 모두 필요합니다.")
+            continue
+
+        student_code = row[0].strip()
+        points_raw = row[1].strip()
+        reason = row[2].strip()
+        granted_by = row[3].strip()
+
+        if not student_code:
+            errors.append(f"{idx}행: 학생고유ID는 필수입니다.")
+            continue
+
+        student = db.query(Student).filter(Student.student_code == student_code).first()
+        if not student:
+            errors.append(f"{idx}행: 학생고유ID '{student_code}'을(를) 시스템에서 찾을 수 없습니다.")
+            continue
+
+        try:
+            points = int(points_raw)
+            if points <= 0:
+                errors.append(f"{idx}행: 달란트 점수는 1 이상의 양수여야 합니다. (입력값: {points_raw})")
+                continue
+        except ValueError:
+            errors.append(f"{idx}행: 달란트 점수 '{points_raw}'는 올바른 정수가 아닙니다.")
+            continue
+
+        if not reason:
+            errors.append(f"{idx}행: 지급사유는 필수입니다.")
+            continue
+
+        if not granted_by:
+            errors.append(f"{idx}행: 지급자(교사/부서)는 필수입니다.")
+            continue
+
+        grant_tasks.append((student, points, reason, granted_by))
+
+    if errors:
+        db.rollback()
+        error_msg = "; ".join(errors[:5])
+        if len(errors) > 5:
+            error_msg += f" 외 {len(errors)-5}건 오류"
+        msg = urllib.parse.quote(f"CSV 형식 검증 실패 ({len(errors)}건): {error_msg}")
+        return RedirectResponse(url=f"/admin/talent/grant?csv_error={msg}", status_code=status.HTTP_303_SEE_OTHER)
+
+    now = get_kst_now()
+    for student, points, reason, granted_by in grant_tasks:
+        earning = TalentEarning(
+            student_id=student.id,
+            rule_id=None,
+            points=points,
+            reason=reason,
+            granted_by=granted_by,
+            created_at=now
+        )
+        student.current_talent += points
+        student.total_earned += points
+        db.add(earning)
+
+    db.commit()
+    return RedirectResponse(url=f"/admin/talent/grant?msg=csv_success&count={len(grant_tasks)}", status_code=status.HTTP_303_SEE_OTHER)
+
 
 
 # -------------------------------------------------------------
@@ -297,6 +565,163 @@ async def update_item_stock(item_id: int, stock: int = Form(...), price: int = F
         item.price = price
         db.commit()
     return RedirectResponse(url="/admin/items?msg=updated", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.get("/items/csv/template")
+async def download_items_csv_template(request: Request):
+    """물품 등록 CSV 양식 다운로드"""
+    check_admin(request)
+    headers = ["상품코드", "상품명", "카테고리", "가격", "재고"]
+    sample_rows = [
+        ["P004", "미니초코파이", "먹거리", "1", "100"],
+        ["P005", "달란트지우개세트", "문구/완구", "2", "30"],
+    ]
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(headers)
+    for r in sample_rows:
+        writer.writerow(r)
+    csv_bytes = ("\ufeff" + output.getvalue()).encode("utf-8")
+    return Response(
+        content=csv_bytes,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": "attachment; filename=items_template.csv"}
+    )
+
+
+@router.post("/items/csv/upload")
+async def upload_items_csv(
+    request: Request,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    """물품 일괄 등록 CSV 파일 업로드 및 형식 검증 (단일 트랜잭션 롤백 보장)"""
+    check_admin(request)
+    content_bytes = await file.read()
+    if not content_bytes:
+        msg = urllib.parse.quote("업로드된 CSV 파일이 비어 있습니다.")
+        return RedirectResponse(url=f"/admin/items?csv_error={msg}", status_code=status.HTTP_303_SEE_OTHER)
+
+    content = decode_csv_content(content_bytes)
+    reader = csv.reader(io.StringIO(content))
+    rows = [row for row in reader if any(cell.strip() for cell in row)]
+
+    if not rows:
+        msg = urllib.parse.quote("유효한 데이터 행이 존재하지 않습니다.")
+        return RedirectResponse(url=f"/admin/items?csv_error={msg}", status_code=status.HTTP_303_SEE_OTHER)
+
+    data_rows = rows[1:]
+    if not data_rows:
+        msg = urllib.parse.quote("등록할 물품 데이터 행이 없습니다.")
+        return RedirectResponse(url=f"/admin/items?csv_error={msg}", status_code=status.HTTP_303_SEE_OTHER)
+
+    errors = []
+    new_items = []
+    seen_codes = set()
+
+    for idx, row in enumerate(data_rows, start=2):
+        if len(row) < 5:
+            errors.append(f"{idx}행: [상품코드, 상품명, 카테고리, 가격, 재고] 5개 항목이 모두 필요합니다.")
+            continue
+
+        code_raw = row[0].strip()
+        name_raw = row[1].strip()
+        cat_raw = row[2].strip()
+        price_raw = row[3].strip()
+        stock_raw = row[4].strip()
+
+        if not name_raw:
+            errors.append(f"{idx}행: 상품명은 필수입니다.")
+            continue
+
+        if not cat_raw:
+            errors.append(f"{idx}행: 카테고리는 필수입니다.")
+            continue
+
+        try:
+            price = int(price_raw)
+            if price <= 0:
+                errors.append(f"{idx}행: 가격은 1 이상의 양수여야 합니다. (입력값: {price_raw})")
+                continue
+        except ValueError:
+            errors.append(f"{idx}행: 가격 '{price_raw}'는 올바른 정수가 아닙니다.")
+            continue
+
+        try:
+            stock = int(stock_raw)
+            if stock < 0:
+                errors.append(f"{idx}행: 재고는 0 이상이어야 합니다. (입력값: {stock_raw})")
+                continue
+        except ValueError:
+            errors.append(f"{idx}행: 재고 '{stock_raw}'는 올바른 정수가 아닙니다.")
+            continue
+
+        if code_raw:
+            if code_raw in seen_codes:
+                errors.append(f"{idx}행: CSV 내 중복된 상품코드 '{code_raw}'가 있습니다.")
+                continue
+            existing = db.query(Item).filter(Item.item_code == code_raw).first()
+            if existing:
+                errors.append(f"{idx}행: 이미 등록된 상품코드 '{code_raw}'입니다.")
+                continue
+            item_code = code_raw
+        else:
+            count = db.query(Item).count() + len(new_items)
+            item_code = f"P{count + 1:03d}"
+            while db.query(Item).filter(Item.item_code == item_code).first() or item_code in seen_codes:
+                count += 1
+                item_code = f"P{count + 1:03d}"
+
+        seen_codes.add(item_code)
+
+        item = Item(
+            item_code=item_code,
+            name=name_raw,
+            category=cat_raw,
+            price=price,
+            stock=stock,
+            image_url="/static/images/ramen.svg",
+            is_active=True,
+            created_at=get_kst_now()
+        )
+        new_items.append(item)
+
+    if errors:
+        db.rollback()
+        error_msg = "; ".join(errors[:5])
+        if len(errors) > 5:
+            error_msg += f" 외 {len(errors)-5}건 오류"
+        msg = urllib.parse.quote(f"CSV 형식 검증 실패 ({len(errors)}건): {error_msg}")
+        return RedirectResponse(url=f"/admin/items?csv_error={msg}", status_code=status.HTTP_303_SEE_OTHER)
+
+    db.add_all(new_items)
+    db.commit()
+    return RedirectResponse(url=f"/admin/items?msg=csv_success&count={len(new_items)}", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/items/{item_id}/update_image")
+async def update_item_image(
+    item_id: int,
+    image: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    """판매 상품 이미지 신규 등록 및 교체"""
+    item = db.query(Item).filter(Item.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="물품을 찾을 수 없습니다.")
+
+    if image and image.filename:
+        filename = f"item_{item.item_code}_{image.filename.replace(' ', '_')}"
+        upload_dir = "static/uploads/items"
+        os.makedirs(upload_dir, exist_ok=True)
+        file_path = os.path.join(upload_dir, filename)
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(image.file, buffer)
+        item.image_url = f"/static/uploads/items/{filename}"
+        db.commit()
+
+    return RedirectResponse(url="/admin/items?msg=image_updated", status_code=status.HTTP_303_SEE_OTHER)
+
 
 
 # -------------------------------------------------------------
