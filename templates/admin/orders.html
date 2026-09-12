@@ -26,14 +26,21 @@
 {% if request.query_params.get('msg') == 'refunded' %}
 <div class="alert alert-success">✓ 반품 처리가 완료되었습니다. 달란트가 학생에게 즉시 환불되었고 재고가 복원되었습니다.</div>
 {% elif request.query_params.get('msg') == 'modified' %}
-<div class="alert alert-success">✓ 주문 수정이 완료되었습니다. 기존 거래 롤백 후 수정된 품목들로 갱신되었습니다.</div>
+<div class="alert alert-success">✓ 주문 수정이 완료되었습니다. 기존 거래 롤백 후 수정된 품목들로 안전하게 갱신되었습니다. 하단 '최근 구매내역 수정 및 반품/환불 조정 이력'에서 변경 내역을 확인하실 수 있습니다.</div>
 {% elif request.query_params.get('error') == 'stock_shortage' %}
 <div class="alert alert-danger">⚠️ 변경하려는 품목{% if request.query_params.get('item_name') %}({{ request.query_params.get('item_name') }}){% endif %}의 재고가 부족합니다.</div>
 {% elif request.query_params.get('error') == 'insufficient_talent' %}
 <div class="alert alert-danger">⚠️ 학생의 보유 달란트가 부족하여 변경할 수 없습니다.</div>
 {% elif request.query_params.get('error') == 'no_items' %}
 <div class="alert alert-danger">⚠️ 주문 품목이 최소 1개 이상 존재해야 합니다. (전체 취소는 '반품/환불' 버튼을 이용해 주세요)</div>
+{% elif request.query_params.get('error') == 'invalid_order' %}
+<div class="alert alert-danger">⚠️ 유효하지 않거나 이미 조치 완료된 주문 건입니다.</div>
+{% elif request.query_params.get('error') == 'item_not_found' %}
+<div class="alert alert-danger">⚠️ 선택한 상품 정보를 시스템에서 찾을 수 없습니다.</div>
+{% elif request.query_params.get('error') %}
+<div class="alert alert-danger">⚠️ 주문 처리 실패: {{ request.query_params.get('error') }}</div>
 {% endif %}
+
 
 <!-- 학생별 검색 및 필터링 카드 -->
 <div class="card" style="margin-bottom: 1.5rem; background: #ffffff; border-top: 4px solid #3b82f6;">
@@ -373,7 +380,9 @@
       tr.innerHTML = `
         <td style="padding: 0.5rem; font-weight: 600; color: #1e293b;">
           ${escapeHtml(item.itemName)}
-          <input type="hidden" name="item_ids" value="${item.itemId}">
+          <input type="hidden" name="item_ids" value="${item.itemId || 0}">
+          <input type="hidden" name="item_names" value="${escapeHtml(item.itemName)}">
+          <input type="hidden" name="unit_prices" value="${item.unitPrice}">
         </td>
         <td style="padding: 0.5rem; color: #64748b;">
           ${item.unitPrice}달란트

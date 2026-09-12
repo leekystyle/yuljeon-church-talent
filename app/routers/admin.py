@@ -708,6 +708,51 @@ async def update_item_stock(item_id: int, stock: int = Form(...), price: int = F
     return RedirectResponse(url="/admin/items?msg=updated", status_code=status.HTTP_303_SEE_OTHER)
 
 
+@router.post("/items/{item_id}/edit")
+async def edit_item(
+    item_id: int,
+    request: Request,
+    name: str = Form(...),
+    category: str = Form(...),
+    price: int = Form(...),
+    stock: int = Form(...),
+    is_active: Optional[str] = Form(None),
+    image: Optional[UploadFile] = File(None),
+    db: Session = Depends(get_db)
+):
+    """매점 물품 상세 정보 (상품명, 카테고리/분류, 가격, 재고, 판매상태, 사진) 종합 수정"""
+    check_admin(request)
+    item = db.query(Item).filter(Item.id == item_id).first()
+    if not item:
+        return RedirectResponse(url="/admin/items?error=item_not_found", status_code=status.HTTP_303_SEE_OTHER)
+
+    item.name = name.strip()
+    item.category = category.strip()
+    item.price = max(1, price)
+    item.stock = max(0, stock)
+    item.is_active = (is_active in ["true", "on", "1", True])
+
+    # 선택 사항: 이미지 파일 업로드 시 갱신
+    if image and image.filename:
+        image_bytes = await image.read()
+        if len(image_bytes) > 500 * 1024:
+            return RedirectResponse(url=f"/admin/items?error=image_too_large&item_id={item_id}", status_code=status.HTTP_303_SEE_OTHER)
+        image_url = bytes_to_data_url(image_bytes, image.filename)
+        item.image_url = image_url
+        try:
+            filename = f"{item.item_code}_{image.filename.replace(' ', '_')}"
+            upload_dir = "static/images"
+            os.makedirs(upload_dir, exist_ok=True)
+            with open(os.path.join(upload_dir, filename), "wb") as buffer:
+                buffer.write(image_bytes)
+        except Exception:
+            pass
+
+    db.commit()
+    return RedirectResponse(url="/admin/items?msg=edited", status_code=status.HTTP_303_SEE_OTHER)
+
+
+
 @router.get("/items/csv/template")
 async def download_items_csv_template(request: Request):
     """물품 등록 CSV 양식 다운로드"""
@@ -946,134 +991,183 @@ async def modify_order(
     form_data = await request.form()
     action = form_data.get("action")
 
-    # 기존 결제 상태 및 품목 요약 사전 백업
-    old_items_summary = ", ".join([f"{it.item_name} × {it.quantity}개" for it in order.items])
-    prev_total = order.total_points
+    try:
+        # 기존 결제 상태 및 품목 요약 사전 백업
+        old_items_summary = ", ".join([f"{it.item_name} × {it.quantity}개" for it in order.items])
+        prev_total = order.total_points
 
-    # 1. 기존 사용 달란트 및 재고 전액 원상복구 (Rollback)
-    student.current_talent += order.total_points
-    student.total_spent -= order.total_points
-    for o_item in order.items:
-        if o_item.item:
-            o_item.item.stock += o_item.quantity
+        # 1. 기존 사용 달란트 및 재고 전액 원상복구 (Rollback)
+        student.current_talent += order.total_points
+        student.total_spent -= order.total_points
+        for o_item in order.items:
+            if o_item.item:
+                o_item.item.stock += o_item.quantity
+            elif o_item.item_id:
+                it = db.query(Item).filter(Item.id == o_item.item_id).first()
+                if it:
+                    it.stock += o_item.quantity
 
-    if action == "refund":
-        # 단순 반품/환불 처리
-        order.status = "REFUNDED"
-        order.updated_at = get_kst_now()
+        if action == "refund":
+            # 단순 반품/환불 처리
+            order.status = "REFUNDED"
+            order.updated_at = get_kst_now()
 
-        # 조정 감사 이력 기록
-        adj_log = OrderAdjustmentLog(
-            order_id=order.id,
-            order_number=order.order_number,
-            student_id=student.id,
-            action_type="REFUND",
-            prev_total_points=prev_total,
-            new_total_points=0,
-            diff_points=prev_total,  # 전액 환불 반환
-            details=f"전체 반품/환불 완료 (취소 품목: {old_items_summary}, +{prev_total}달란트 잔액 복구)",
-            admin_name="관리자",
-            adjusted_at=get_kst_now()
-        )
-        db.add(adj_log)
-        db.commit()
-
-        redirect_url = f"/admin/orders?msg=refunded&student_id={student.id}"
-        return RedirectResponse(url=redirect_url, status_code=status.HTTP_303_SEE_OTHER)
-
-    elif action == "update":
-        # 다중 품목 파싱
-        raw_item_ids = form_data.getlist("item_ids")
-        raw_quantities = form_data.getlist("quantities")
-
-        # 기존 단일 폼 호환
-        if not raw_item_ids and form_data.get("new_item_id"):
-            raw_item_ids = [form_data.get("new_item_id")]
-            raw_quantities = [form_data.get("new_quantity", 1)]
-
-        # item_id별 수량 집계 (0 초과만 유효)
-        items_map = {}
-        for r_id, r_qty in zip(raw_item_ids, raw_quantities):
-            try:
-                iid = int(r_id)
-                qty = int(r_qty)
-                if qty > 0:
-                    items_map[iid] = items_map.get(iid, 0) + qty
-            except (ValueError, TypeError):
-                continue
-
-        if not items_map:
-            db.rollback()
-            return RedirectResponse(url=f"/admin/orders?error=no_items&student_id={student.id}", status_code=status.HTTP_303_SEE_OTHER)
-
-        # 재고 확인 및 새 결제 총액 계산
-        new_total = 0
-        items_to_process = []
-        for iid, qty in items_map.items():
-            item = db.query(Item).filter(Item.id == iid).first()
-            if not item:
-                db.rollback()
-                return RedirectResponse(url=f"/admin/orders?error=item_not_found&student_id={student.id}", status_code=status.HTTP_303_SEE_OTHER)
-            if item.stock < qty:
-                db.rollback()
-                return RedirectResponse(url=f"/admin/orders?error=stock_shortage&item_name={urllib.parse.quote(item.name)}&student_id={student.id}", status_code=status.HTTP_303_SEE_OTHER)
-            subtotal = item.price * qty
-            new_total += subtotal
-            items_to_process.append((item, qty, subtotal))
-
-        # 학생 잔여 달란트 확인 (원상복구된 잔액 기준)
-        if student.current_talent < new_total:
-            db.rollback()
-            return RedirectResponse(url=f"/admin/orders?error=insufficient_talent&student_id={student.id}", status_code=status.HTTP_303_SEE_OTHER)
-
-        # 새 차감 적용
-        student.current_talent -= new_total
-        student.total_spent += new_total
-        for item, qty, _ in items_to_process:
-            item.stock -= qty
-
-        # 기존 주문 세부 품목 삭제
-        for o_item in list(order.items):
-            db.delete(o_item)
-        order.items.clear()
-
-        # 신규 품목 추가
-        for item, qty, subtotal in items_to_process:
-            new_order_item = OrderItem(
+            # 조정 감사 이력 기록
+            adj_log = OrderAdjustmentLog(
                 order_id=order.id,
-                item_id=item.id,
-                item_name=item.name,
-                unit_price=item.price,
-                quantity=qty,
-                subtotal_points=subtotal
+                order_number=order.order_number,
+                student_id=student.id,
+                action_type="REFUND",
+                prev_total_points=prev_total,
+                new_total_points=0,
+                diff_points=prev_total,  # 전액 환불 반환
+                details=f"전체 반품/환불 완료 (취소 품목: {old_items_summary}, +{prev_total}달란트 잔액 복구)",
+                admin_name="관리자",
+                adjusted_at=get_kst_now()
             )
-            db.add(new_order_item)
+            db.add(adj_log)
+            db.commit()
 
-        new_items_summary = ", ".join([f"{item.name} × {qty}개" for item, qty, _ in items_to_process])
-        diff = prev_total - new_total
+            redirect_url = f"/admin/orders?msg=refunded&student_id={student.id}"
+            return RedirectResponse(url=redirect_url, status_code=status.HTTP_303_SEE_OTHER)
 
-        diff_desc = f"+{diff}달란트 환불 반환" if diff > 0 else (f"{abs(diff)}달란트 추가 차감" if diff < 0 else "금액 변동 없음")
-        adj_log = OrderAdjustmentLog(
-            order_id=order.id,
-            order_number=order.order_number,
-            student_id=student.id,
-            action_type="UPDATE",
-            prev_total_points=prev_total,
-            new_total_points=new_total,
-            diff_points=diff,
-            details=f"품목/수량 수정: [{old_items_summary}] ➔ [{new_items_summary}] (결제: {prev_total} ➔ {new_total}달란트, {diff_desc})",
-            admin_name="관리자",
-            adjusted_at=get_kst_now()
-        )
-        db.add(adj_log)
+        elif action == "update":
+            # 다중 품목 파싱
+            raw_item_ids = form_data.getlist("item_ids")
+            raw_item_names = form_data.getlist("item_names")
+            raw_unit_prices = form_data.getlist("unit_prices")
+            raw_quantities = form_data.getlist("quantities")
 
-        order.total_points = new_total
-        order.status = "COMPLETED"
-        order.updated_at = get_kst_now()
-        db.commit()
-        return RedirectResponse(url=f"/admin/orders?msg=modified&student_id={student.id}", status_code=status.HTTP_303_SEE_OTHER)
+            # 기존 단일 폼 호환
+            if not raw_item_ids and form_data.get("new_item_id"):
+                raw_item_ids = [form_data.get("new_item_id")]
+                raw_quantities = [form_data.get("new_quantity", 1)]
+
+            # 품목 데이터 정규화 및 수량 유효성 검사
+            items_parsed = []
+            for idx in range(len(raw_quantities)):
+                r_qty = raw_quantities[idx]
+                r_id = raw_item_ids[idx] if idx < len(raw_item_ids) else "0"
+                r_name = raw_item_names[idx].strip() if idx < len(raw_item_names) else ""
+                r_price = raw_unit_prices[idx] if idx < len(raw_unit_prices) else "0"
+
+                try:
+                    qty = int(r_qty)
+                    if qty <= 0:
+                        continue
+                    iid = int(r_id) if r_id else 0
+                    uprice = int(r_price) if r_price else 0
+                except (ValueError, TypeError):
+                    continue
+
+                items_parsed.append({
+                    "id": iid,
+                    "name": r_name,
+                    "price": uprice,
+                    "quantity": qty
+                })
+
+            if not items_parsed:
+                db.rollback()
+                return RedirectResponse(url=f"/admin/orders?error=no_items&student_id={student.id}", status_code=status.HTTP_303_SEE_OTHER)
+
+            # 품목 객체 매핑 및 재고/가격 검증
+            new_total = 0
+            items_to_process = []
+            for entry in items_parsed:
+                iid = entry["id"]
+                iname = entry["name"]
+                qty = entry["quantity"]
+                uprice = entry["price"]
+
+                item = None
+                if iid > 0:
+                    item = db.query(Item).filter(Item.id == iid).first()
+                if not item and iname:
+                    item = db.query(Item).filter(Item.name == iname).first()
+
+                if item:
+                    if item.stock < qty:
+                        db.rollback()
+                        return RedirectResponse(
+                            url=f"/admin/orders?error=stock_shortage&item_name={urllib.parse.quote(item.name)}&student_id={student.id}",
+                            status_code=status.HTTP_303_SEE_OTHER
+                        )
+                    unit_cost = item.price
+                    actual_name = item.name
+                    actual_id = item.id
+                else:
+                    # 마스터 품목이 없는 경우 (과거 품목 보존용)
+                    unit_cost = max(0, uprice)
+                    actual_name = iname or "지정 품목"
+                    actual_id = None
+
+                subtotal = unit_cost * qty
+                new_total += subtotal
+                items_to_process.append((item, actual_id, actual_name, unit_cost, qty, subtotal))
+
+            # 학생 잔여 달란트 확인 (원상복구된 잔액 기준)
+            if student.current_talent < new_total:
+                db.rollback()
+                return RedirectResponse(url=f"/admin/orders?error=insufficient_talent&student_id={student.id}", status_code=status.HTTP_303_SEE_OTHER)
+
+            # 새 차감 적용
+            student.current_talent -= new_total
+            student.total_spent += new_total
+            for item, _, _, _, qty, _ in items_to_process:
+                if item:
+                    item.stock -= qty
+
+            # 기존 주문 세부 품목 삭제 (안전한 cascade 처리)
+            for o_item in list(order.items):
+                db.delete(o_item)
+            db.flush()
+
+            # 신규 품목 추가
+            for _, actual_id, actual_name, unit_cost, qty, subtotal in items_to_process:
+                new_order_item = OrderItem(
+                    order_id=order.id,
+                    item_id=actual_id,
+                    item_name=actual_name,
+                    unit_price=unit_cost,
+                    quantity=qty,
+                    subtotal_points=subtotal
+                )
+                db.add(new_order_item)
+
+            new_items_summary = ", ".join([f"{actual_name} × {qty}개" for _, _, actual_name, _, qty, _ in items_to_process])
+            diff = prev_total - new_total
+
+            diff_desc = f"+{diff}달란트 환불 반환" if diff > 0 else (f"{abs(diff)}달란트 추가 차감" if diff < 0 else "금액 변동 없음")
+            adj_log = OrderAdjustmentLog(
+                order_id=order.id,
+                order_number=order.order_number,
+                student_id=student.id,
+                action_type="UPDATE",
+                prev_total_points=prev_total,
+                new_total_points=new_total,
+                diff_points=diff,
+                details=f"품목/수량 수정: [{old_items_summary}] ➔ [{new_items_summary}] (결제: {prev_total} ➔ {new_total}달란트, {diff_desc})",
+                admin_name="관리자",
+                adjusted_at=get_kst_now()
+            )
+            db.add(adj_log)
+
+            order.total_points = new_total
+            order.status = "COMPLETED"
+            order.updated_at = get_kst_now()
+            db.commit()
+            return RedirectResponse(url=f"/admin/orders?msg=modified&student_id={student.id}", status_code=status.HTTP_303_SEE_OTHER)
+
+    except Exception as e:
+        db.rollback()
+        import traceback
+        traceback.print_exc()
+        err_msg = urllib.parse.quote(f"주문 수정 처리 중 오류가 발생했습니다: {str(e)}")
+        return RedirectResponse(url=f"/admin/orders?error={err_msg}&student_id={student.id}", status_code=status.HTTP_303_SEE_OTHER)
 
     return RedirectResponse(url="/admin/orders", status_code=status.HTTP_303_SEE_OTHER)
+
 
 
 # -------------------------------------------------------------

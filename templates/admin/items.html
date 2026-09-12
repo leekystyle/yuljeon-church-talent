@@ -54,6 +54,12 @@
 </div>
 {% endif %}
 
+{% if request.query_params.get('msg') == 'edited' %}
+<div class="alert alert-success" style="margin-bottom: 1.5rem;">
+  ✓ 상품 정보(분류, 상품명, 가격, 재고, 판매상태)가 성공적으로 수정되었습니다!
+</div>
+{% endif %}
+
 {% if request.query_params.get('msg') == 'image_updated' %}
 <div class="alert alert-success" style="margin-bottom: 1.5rem;">
   📷 상품 이미지가 성공적으로 변경/등록되었습니다!
@@ -65,15 +71,15 @@
     <table class="styled-table">
       <thead>
         <tr>
-          <th>사진</th>
-          <th>상품코드</th>
-          <th>분류</th>
+          <th style="width: 60px;">사진</th>
+          <th style="width: 90px;">상품코드</th>
+          <th style="width: 100px;">분류</th>
           <th>상품명</th>
-          <th>가격(달란트)</th>
-          <th>현재 재고</th>
-          <th>상태</th>
-          <th>재고/단가 변경</th>
-          <th>사진 관리</th>
+          <th style="width: 110px;">가격(달란트)</th>
+          <th style="width: 100px;">현재 재고</th>
+          <th style="width: 80px; text-align: center;">상태</th>
+          <th style="width: 190px;">재고/단가 간편저장</th>
+          <th style="width: 150px; text-align: center;">상품 관리</th>
         </tr>
       </thead>
       <tbody>
@@ -93,7 +99,7 @@
             <span style="color: #dc2626; font-weight: bold;">품절 (0개)</span>
             {% endif %}
           </td>
-          <td>
+          <td style="text-align: center;">
             {% if it.is_active %}
             <span class="badge badge-success">판매중</span>
             {% else %}
@@ -102,15 +108,29 @@
           </td>
           <td>
             <form action="/admin/items/{{ it.id }}/update_stock" method="POST" style="display: flex; gap: 0.4rem; align-items: center;">
-              <input type="number" name="price" value="{{ it.price }}" class="form-control" style="width: 75px; padding: 0.25rem 0.4rem;" title="가격" required> 달란트
-              <input type="number" name="stock" value="{{ it.stock }}" class="form-control" style="width: 70px; padding: 0.25rem 0.4rem;" title="재고" required> 개
+              <input type="number" name="price" value="{{ it.price }}" class="form-control" style="width: 65px; padding: 0.25rem 0.4rem;" title="가격" required> 달란트
+              <input type="number" name="stock" value="{{ it.stock }}" class="form-control" style="width: 60px; padding: 0.25rem 0.4rem;" title="재고" required> 개
               <button type="submit" class="btn btn-sm btn-outline">저장</button>
             </form>
           </td>
-          <td>
-            <button class="btn btn-sm btn-outline" onclick="openItemImageModal('{{ it.id }}', '{{ it.name }}', '{{ it.image_url }}')">
-              📷 사진 변경
-            </button>
+          <td style="text-align: center;">
+            <div style="display: flex; gap: 0.35rem; justify-content: center;">
+              <button type="button" class="btn btn-sm btn-primary"
+                data-id="{{ it.id }}"
+                data-code="{{ it.item_code }}"
+                data-name="{{ it.name }}"
+                data-category="{{ it.category }}"
+                data-price="{{ it.price }}"
+                data-stock="{{ it.stock }}"
+                data-active="{{ 'true' if it.is_active else 'false' }}"
+                data-image="{{ it.image_url or '/static/images/ramen.svg' }}"
+                onclick="openEditItemModal(this)" style="font-weight: 700;">
+                ✏️ 수정
+              </button>
+              <button type="button" class="btn btn-sm btn-outline" onclick="openItemImageModal('{{ it.id }}', '{{ it.name }}', '{{ it.image_url }}')" title="사진만 변경">
+                📷
+              </button>
+            </div>
           </td>
         </tr>
         {% endfor %}
@@ -118,6 +138,7 @@
     </table>
   </div>
 </div>
+
 
 <!-- 물품 추가 모달 -->
 <div id="item-modal" class="modal-backdrop">
@@ -200,6 +221,80 @@
   </div>
 </div>
 
+<!-- 상품 종합 정보 수정 모달 -->
+<div id="edit-item-modal" class="modal-backdrop">
+  <div class="modal-content" style="max-width: 580px; width: 95%;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+      <h3 style="margin: 0; color: #1e3a8a; font-size: 1.35rem;">✏️ 상품 정보 및 분류 수정</h3>
+      <button type="button" onclick="closeEditItemModal()" style="background: none; border: none; font-size: 1.3rem; cursor: pointer; color: #64748b;">✕</button>
+    </div>
+    <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1.2rem;" id="edit-item-desc">
+      상품의 분류(카테고리), 상품명, 판매가격, 재고 및 판매상태를 수정합니다.
+    </p>
+
+    <form id="edit-item-form" method="POST" enctype="multipart/form-data">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-bottom: 1rem;">
+        <div class="form-group">
+          <label class="form-label">상품코드</label>
+          <input type="text" id="edit-item-code" class="form-control" style="background: #f1f5f9; color: #475569; font-weight: 700;" readonly>
+        </div>
+        <div class="form-group">
+          <label class="form-label">판매 상태 <span style="color: red;">*</span></label>
+          <select id="edit-item-active" name="is_active" class="form-control">
+            <option value="true">🟢 판매중 (키오스크 진열)</option>
+            <option value="false">🔴 판매중지 (키오스크 숨김)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="edit-item-name">상품명 <span style="color: red;">*</span></label>
+        <input type="text" id="edit-item-name" name="name" class="form-control" placeholder="예: 한강라면, 핫초코" required>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem;">
+        <div class="form-group">
+          <label class="form-label" for="edit-item-cat">분류 / 카테고리 <span style="color: red;">*</span></label>
+          <input type="text" id="edit-item-cat" name="category" class="form-control" list="category-options" placeholder="카테고리 선택 또는 직접 입력" required>
+          <datalist id="category-options">
+            <option value="먹거리">
+            <option value="문화생활">
+            <option value="문구/완구">
+            <option value="도서/학용품">
+            <option value="기타">
+          </datalist>
+          <small style="color: var(--text-muted); font-size: 0.78rem;">목록 선택 또는 새 분류명 직접 입력 가능</small>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="edit-item-price">가격 (달란트) <span style="color: red;">*</span></label>
+          <input type="number" id="edit-item-price" name="price" class="form-control" min="1" required>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="edit-item-stock">현재 재고 수량 <span style="color: red;">*</span></label>
+        <input type="number" id="edit-item-stock" name="stock" class="form-control" min="0" required>
+      </div>
+
+      <div class="form-group" style="background: #f8fafc; padding: 0.8rem; border-radius: 8px; border: 1px solid var(--border);">
+        <label class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
+          <span>상품 사진 이미지 (선택 사항)</span>
+          <span style="font-size: 0.78rem; color: #dc2626; font-weight: 700;">* 변경 시에만 업로드 (최대 500KB)</span>
+        </label>
+        <div style="display: flex; gap: 0.8rem; align-items: center; margin-top: 0.4rem;">
+          <img id="edit-item-preview" src="" alt="미리보기" style="width: 50px; height: 50px; object-fit: contain; border-radius: 6px; border: 1px solid var(--border); background: #ffffff;">
+          <input type="file" id="edit-item-image" name="image" class="form-control" accept="image/*" onchange="checkItemImageFileSize(this, 500)" style="flex: 1; font-size: 0.85rem;">
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 0.5rem; margin-top: 1.2rem;">
+        <button type="button" class="btn btn-outline" style="flex: 1;" onclick="closeEditItemModal()">취소</button>
+        <button type="submit" class="btn btn-primary" style="flex: 2; font-weight: 700;">✓ 상품 정보 수정 저장</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- 상품 사진 변경 모달 -->
 <div id="item-image-modal" class="modal-backdrop">
   <div class="modal-content">
@@ -237,6 +332,33 @@
   function openItemCsvModal() { document.getElementById('item-csv-modal').classList.add('show'); }
   function closeItemCsvModal() { document.getElementById('item-csv-modal').classList.remove('show'); }
 
+  function openEditItemModal(btn) {
+    const id = btn.getAttribute('data-id');
+    const code = btn.getAttribute('data-code');
+    const name = btn.getAttribute('data-name');
+    const category = btn.getAttribute('data-category');
+    const price = btn.getAttribute('data-price');
+    const stock = btn.getAttribute('data-stock');
+    const active = btn.getAttribute('data-active');
+    const image = btn.getAttribute('data-image');
+
+    document.getElementById('edit-item-form').action = '/admin/items/' + id + '/edit';
+    document.getElementById('edit-item-code').value = code || '';
+    document.getElementById('edit-item-name').value = name || '';
+    document.getElementById('edit-item-cat').value = category || '';
+    document.getElementById('edit-item-price').value = price || '';
+    document.getElementById('edit-item-stock').value = stock || '';
+    document.getElementById('edit-item-active').value = (active === 'true') ? 'true' : 'false';
+    document.getElementById('edit-item-preview').src = image || '/static/images/ramen.svg';
+    document.getElementById('edit-item-image').value = '';
+
+    document.getElementById('edit-item-modal').classList.add('show');
+  }
+
+  function closeEditItemModal() {
+    document.getElementById('edit-item-modal').classList.remove('show');
+  }
+
   function openItemImageModal(itemId, itemName, currentUrl) {
     document.getElementById('image-modal-title').textContent = itemName + " 상품의 이미지를 업로드합니다.";
     document.getElementById('image-modal-preview').src = currentUrl || '/static/images/ramen.svg';
@@ -260,3 +382,4 @@
   }
 </script>
 {% endblock %}
+
