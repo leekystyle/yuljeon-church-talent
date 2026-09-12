@@ -11,7 +11,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app.database import engine, Base, SessionLocal
 from app.models import (
-    Student, TalentRule, TalentEarning, Item, Order, OrderItem, AnnualReset, AnnualSnapshot
+    Student, TalentRule, TalentEarning, Item, Order, OrderItem, AnnualReset, AnnualSnapshot,
+    Department, RuleCategory
 )
 from app.timezone import get_kst_now
 
@@ -320,7 +321,31 @@ def init_db_and_seed():
             print("✓ [yuljeon-annual_resets] 3건 등록 완료")
             print("✓ [yuljeon-annual_snapshots] 3건 등록 완료")
 
-        print("=== [3/3] 전체 8개 테이블 각각 3건 시딩 완료! ===")
+        # 9. yuljeon-departments 초기 소속부서
+        if db.query(Department).count() == 0:
+            default_depts = [
+                Department(name="유치부", display_order=1, is_active=True, created_at=get_kst_now()),
+                Department(name="아동부", display_order=2, is_active=True, created_at=get_kst_now()),
+                Department(name="청소년부", display_order=3, is_active=True, created_at=get_kst_now()),
+            ]
+            db.add_all(default_depts)
+            db.commit()
+            print("✓ [yuljeon-departments] 기본 소속부서 3건 등록 완료")
+
+        # 10. yuljeon-rule_categories 초기 기준 분류
+        if db.query(RuleCategory).count() == 0:
+            default_cats = [
+                RuleCategory(name="예배", display_order=1, is_active=True, created_at=get_kst_now()),
+                RuleCategory(name="전도", display_order=2, is_active=True, created_at=get_kst_now()),
+                RuleCategory(name="봉사", display_order=3, is_active=True, created_at=get_kst_now()),
+                RuleCategory(name="암송", display_order=4, is_active=True, created_at=get_kst_now()),
+                RuleCategory(name="특별", display_order=5, is_active=True, created_at=get_kst_now()),
+            ]
+            db.add_all(default_cats)
+            db.commit()
+            print("✓ [yuljeon-rule_categories] 기본 기준 분류 5건 등록 완료")
+
+        print("=== [3/3] 전체 10개 테이블 초기화 및 시딩 완료! ===")
     finally:
         db.close()
 

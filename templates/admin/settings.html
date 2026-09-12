@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+
+{% block title %}시스템 환경 설정 - 율전중앙교회 달란트{% endblock %}
+
+{% block content %}
+<!-- 관리자 서브 네비게이션 바 -->
+<div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.8rem;">
+  <a href="/admin/dashboard" class="btn btn-sm btn-outline">📊 활동 대시보드</a>
+  <a href="/admin/students" class="btn btn-sm btn-outline">👥 학생 관리/승인</a>
+  <a href="/admin/talent/grant" class="btn btn-sm btn-outline">🪙 달란트 실적 지급</a>
+  <a href="/admin/talent/rules" class="btn btn-sm btn-outline">📜 지급 기준 관리</a>
+  <a href="/admin/items" class="btn btn-sm btn-outline">🛍️ 매점 물품/재고</a>
+  <a href="/admin/orders" class="btn btn-sm btn-outline">🔄 구매내역 수정/반품</a>
+  <a href="/admin/settings" class="btn btn-sm btn-primary">⚙️ 환경 설정</a>
+  <a href="/admin/annual_reset" class="btn btn-sm btn-outline">⏳ 연간 총괄 초기화</a>
+  <a href="/kiosk" target="_blank" class="btn btn-sm btn-accent" style="font-weight: 700;">🛒 매점 키오스크 ↗</a>
+  <a href="/auth/admin/logout" class="btn btn-sm btn-danger" style="margin-left: auto;">로그아웃</a>
+</div>
+
+<div style="margin-bottom: 1.5rem;">
+  <h2 style="font-size: 1.7rem; font-weight: 800; color: #1e3a8a;">시스템 환경 설정</h2>
+  <p style="color: var(--text-muted); font-size: 0.95rem;">
+    학생들의 <strong>소속부서</strong>와 달란트 지급 기준의 <strong>분류 카테고리</strong>를 등록, 수정 및 삭제 관리합니다.
+  </p>
+</div>
+
+{% if request.query_params.get('msg') == 'dept_created' %}
+<div class="alert alert-success">✓ 새 소속부서가 성공적으로 등록되었습니다.</div>
+{% elif request.query_params.get('msg') == 'dept_updated' %}
+<div class="alert alert-success">✓ 소속부서 정보가 수정되었습니다.</div>
+{% elif request.query_params.get('msg') == 'dept_deleted' %}
+<div class="alert alert-success">✓ 소속부서가 삭제되었습니다.</div>
+{% elif request.query_params.get('msg') == 'cat_created' %}
+<div class="alert alert-success">✓ 새 지급 기준 분류가 성공적으로 등록되었습니다.</div>
+{% elif request.query_params.get('msg') == 'cat_updated' %}
+<div class="alert alert-success">✓ 지급 기준 분류가 수정되었습니다.</div>
+{% elif request.query_params.get('msg') == 'cat_deleted' %}
+<div class="alert alert-success">✓ 지급 기준 분류가 삭제되었습니다.</div>
+{% elif request.query_params.get('error') == 'dept_duplicate' %}
+<div class="alert alert-danger">⚠️ 이미 동일한 이름의 소속부서가 존재합니다.</div>
+{% elif request.query_params.get('error') == 'cat_duplicate' %}
+<div class="alert alert-danger">⚠️ 이미 동일한 이름의 기준 분류가 존재합니다.</div>
+{% endif %}
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+  <!-- 1. 학생 소속부서 설정 카드 -->
+  <div class="card" style="border-top: 4px solid #3b82f6;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+      <h3 style="font-size: 1.25rem; font-weight: 700; color: #1e3a8a;">👥 학생 소속부서 설정</h3>
+      <span class="badge badge-primary">총 {{ departments | length }}개</span>
+    </div>
+    <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.2rem;">
+      학생 회원가입 및 관리자 등록/필터 시 선택 항목으로 연동됩니다.
+    </p>
+
+    <!-- 부서 신규 등록 인라인 폼 -->
+    <form action="/admin/settings/departments/create" method="POST" style="display: flex; gap: 0.5rem; margin-bottom: 1.2rem; background: #f8fafc; padding: 0.8rem; border-radius: 8px; border: 1px solid var(--border);">
+      <input type="text" name="name" class="form-control" placeholder="새 부서명 (예: 영아부, 초등부)" required style="flex: 2; font-size: 0.9rem;">
+      <input type="number" name="display_order" class="form-control" placeholder="순서" value="1" min="1" max="99" style="width: 75px; font-size: 0.9rem;" title="표시 순서">
+      <button type="submit" class="btn btn-primary" style="white-space: nowrap; font-size: 0.85rem; font-weight: 700;">➕ 부서 추가</button>
+    </form>
+
+    <div class="table-responsive">
+      <table class="styled-table" style="font-size: 0.9rem;">
+        <thead>
+          <tr>
+            <th style="width: 60px; text-align: center;">순서</th>
+            <th>부서명</th>
+            <th style="width: 80px; text-align: center;">상태</th>
+            <th style="width: 130px; text-align: center;">관리</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in departments %}
+          <tr>
+            <td style="text-align: center; color: var(--text-muted);">{{ d.display_order }}</td>
+            <td style="font-weight: 700; color: #1e293b;">
+              <span class="badge badge-primary" style="font-size: 0.88rem;">{{ d.name }}</span>
+            </td>
+            <td style="text-align: center;">
+              {% if d.is_active %}
+              <span class="badge badge-success">활성</span>
+              {% else %}
+              <span class="badge badge-warning">비활성</span>
+              {% endif %}
+            </td>
+            <td style="text-align: center;">
+              <div style="display: flex; gap: 0.3rem; justify-content: center;">
+                <button type="button" class="btn btn-sm btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;" onclick="openEditDeptModal({{ d.id }}, {{ d.name | tojson }}, {{ d.display_order }}, {{ 'true' if d.is_active else 'false' }})">✏️ 수정</button>
+                <form action="/admin/settings/departments/{{ d.id }}/delete" method="POST" onsubmit="return confirm('\'{{ d.name }}\' 부서를 삭제하시겠습니까?');" style="display: inline;">
+                  <button type="submit" class="btn btn-sm btn-danger" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;">삭제</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">등록된 소속부서가 없습니다.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 2. 지급 기준 분류 설정 카드 -->
+  <div class="card" style="border-top: 4px solid #10b981;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+      <h3 style="font-size: 1.25rem; font-weight: 700; color: #047857;">📜 지급 기준 분류 설정</h3>
+      <span class="badge badge-success">총 {{ categories | length }}개</span>
+    </div>
+    <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.2rem;">
+      지급 기준 관리 화면 및 학생 포털 기준표 분류로 연동됩니다.
+    </p>
+
+    <!-- 분류 신규 등록 인라인 폼 -->
+    <form action="/admin/settings/categories/create" method="POST" style="display: flex; gap: 0.5rem; margin-bottom: 1.2rem; background: #f8fafc; padding: 0.8rem; border-radius: 8px; border: 1px solid var(--border);">
+      <input type="text" name="name" class="form-control" placeholder="새 분류명 (예: 예배, 성경암송, 전도)" required style="flex: 2; font-size: 0.9rem;">
+      <input type="number" name="display_order" class="form-control" placeholder="순서" value="1" min="1" max="99" style="width: 75px; font-size: 0.9rem;" title="표시 순서">
+      <button type="submit" class="btn btn-primary" style="white-space: nowrap; font-size: 0.85rem; font-weight: 700; background: #059669; border-color: #059669;">➕ 분류 추가</button>
+    </form>
+
+    <div class="table-responsive">
+      <table class="styled-table" style="font-size: 0.9rem;">
+        <thead>
+          <tr>
+            <th style="width: 60px; text-align: center;">순서</th>
+            <th>분류명</th>
+            <th style="width: 80px; text-align: center;">상태</th>
+            <th style="width: 130px; text-align: center;">관리</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in categories %}
+          <tr>
+            <td style="text-align: center; color: var(--text-muted);">{{ c.display_order }}</td>
+            <td style="font-weight: 700; color: #1e293b;">
+              <span class="badge badge-warning" style="font-size: 0.88rem;">{{ c.name }}</span>
+            </td>
+            <td style="text-align: center;">
+              {% if c.is_active %}
+              <span class="badge badge-success">활성</span>
+              {% else %}
+              <span class="badge badge-warning">비활성</span>
+              {% endif %}
+            </td>
+            <td style="text-align: center;">
+              <div style="display: flex; gap: 0.3rem; justify-content: center;">
+                <button type="button" class="btn btn-sm btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;" onclick="openEditCatModal({{ c.id }}, {{ c.name | tojson }}, {{ c.display_order }}, {{ 'true' if c.is_active else 'false' }})">✏️ 수정</button>
+                <form action="/admin/settings/categories/{{ c.id }}/delete" method="POST" onsubmit="return confirm('\'{{ c.name }}\' 분류를 삭제하시겠습니까?');" style="display: inline;">
+                  <button type="submit" class="btn btn-sm btn-danger" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;">삭제</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">등록된 기준 분류가 없습니다.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 부서 수정 모달 -->
+<div id="dept-modal" class="modal-backdrop">
+  <div class="modal-content" style="max-width: 420px;">
+    <h3 style="margin-bottom: 0.4rem; color: #1e3a8a;">소속부서 정보 수정</h3>
+    <form id="dept-form" method="POST">
+      <div class="form-group">
+        <label class="form-label" for="edit-dept-name">소속부서명 <span style="color:red;">*</span></label>
+        <input type="text" id="edit-dept-name" name="name" class="form-control" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="edit-dept-order">표시 순서</label>
+        <input type="number" id="edit-dept-order" name="display_order" class="form-control" min="1" max="99" required>
+      </div>
+      <div class="form-group" style="margin-top: 0.8rem;">
+        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+          <input type="checkbox" id="edit-dept-active" name="is_active" value="true">
+          <span style="font-weight: 600;">부서 활성화 (선택 목록 표출)</span>
+        </label>
+      </div>
+      <div style="display: flex; gap: 0.5rem; margin-top: 1.2rem;">
+        <button type="button" class="btn btn-outline" style="flex: 1;" onclick="closeEditDeptModal()">취소</button>
+        <button type="submit" class="btn btn-primary" style="flex: 2;">수정 저장</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 기준 분류 수정 모달 -->
+<div id="cat-modal" class="modal-backdrop">
+  <div class="modal-content" style="max-width: 420px;">
+    <h3 style="margin-bottom: 0.4rem; color: #047857;">지급 기준 분류 수정</h3>
+    <form id="cat-form" method="POST">
+      <div class="form-group">
+        <label class="form-label" for="edit-cat-name">분류명 <span style="color:red;">*</span></label>
+        <input type="text" id="edit-cat-name" name="name" class="form-control" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="edit-cat-order">표시 순서</label>
+        <input type="number" id="edit-cat-order" name="display_order" class="form-control" min="1" max="99" required>
+      </div>
+      <div class="form-group" style="margin-top: 0.8rem;">
+        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+          <input type="checkbox" id="edit-cat-active" name="is_active" value="true">
+          <span style="font-weight: 600;">분류 활성화 (선택 목록 표출)</span>
+        </label>
+      </div>
+      <div style="display: flex; gap: 0.5rem; margin-top: 1.2rem;">
+        <button type="button" class="btn btn-outline" style="flex: 1;" onclick="closeEditCatModal()">취소</button>
+        <button type="submit" class="btn btn-primary" style="flex: 2; background: #059669; border-color: #059669;">수정 저장</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function openEditDeptModal(id, name, order, isActive) {
+    document.getElementById('dept-form').action = `/admin/settings/departments/${id}/edit`;
+    document.getElementById('edit-dept-name').value = name;
+    document.getElementById('edit-dept-order').value = order;
+    document.getElementById('edit-dept-active').checked = isActive;
+    document.getElementById('dept-modal').classList.add('show');
+  }
+  function closeEditDeptModal() {
+    document.getElementById('dept-modal').classList.remove('show');
+  }
+
+  function openEditCatModal(id, name, order, isActive) {
+    document.getElementById('cat-form').action = `/admin/settings/categories/${id}/edit`;
+    document.getElementById('edit-cat-name').value = name;
+    document.getElementById('edit-cat-order').value = order;
+    document.getElementById('edit-cat-active').checked = isActive;
+    document.getElementById('cat-modal').classList.add('show');
+  }
+  function closeEditCatModal() {
+    document.getElementById('cat-modal').classList.remove('show');
+  }
+</script>
+{% endblock %}

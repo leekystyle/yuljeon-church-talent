@@ -46,14 +46,45 @@ async def kiosk_main(request: Request, db: Session = Depends(get_db)):
 
 @router.post("/login")
 async def kiosk_login(
-    student_code: str = Form(...),
+    student_code: Optional[str] = Form(None),
+    student_id: Optional[int] = Form(None),
     password: str = Form(...),
     db: Session = Depends(get_db)
 ):
-    """키오스크 학생 간편 로그인"""
-    student = db.query(Student).filter(Student.student_code == student_code.strip()).first()
+    """키오스크 학생 간편 로그인 (이름/학생ID 및 동명이인 지원)"""
+    student = None
+    if student_id:
+        student = db.query(Student).filter(Student.id == student_id).first()
+    elif student_code and student_code.strip():
+        val = student_code.strip()
+        code_match = db.query(Student).filter(Student.student_code.ilike(val)).first()
+        if code_match:
+            student = code_match
+        else:
+            name_matches = db.query(Student).filter(Student.name == val).all()
+            if len(name_matches) == 1:
+                student = name_matches[0]
+            elif len(name_matches) > 1:
+                candidates = [
+                    {
+                        "id": s.id,
+                        "name": s.name,
+                        "student_code": s.student_code,
+                        "department": s.department or "미지정",
+                        "age": s.age,
+                        "photo_url": s.photo_url or "/static/uploads/profiles/default_avatar.svg"
+                    }
+                    for s in name_matches
+                ]
+                return JSONResponse(content={
+                    "success": False, 
+                    "multiple": True, 
+                    "candidates": candidates,
+                    "message": "동명이인 학생이 여러 명 있습니다. 아래에서 본인을 선택해 주세요."
+                })
+
     if not student or student.password_hash != password.strip():
-        return JSONResponse(status_code=400, content={"success": False, "message": "학생 ID 또는 비밀번호가 일치하지 않습니다."})
+        return JSONResponse(status_code=400, content={"success": False, "message": "이름(또는 ID)과 비밀번호가 일치하지 않습니다."})
     
     if not student.is_active:
         return JSONResponse(status_code=403, content={"success": False, "message": "가입 승인 대기 중인 학생입니다. 선생님께 문의해 주세요."})

@@ -24,10 +24,57 @@ def get_current_student(request: Request, db: Session) -> Optional[Student]:
         return None
 
 
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+
+@router.get("/api/lookup")
+async def student_lookup(query: str = "", db: Session = Depends(get_db)):
+    """이름 또는 학생코드로 학생 검색 (동명이인 및 자동완성 지원)"""
+    q = query.strip()
+    if not q:
+        return JSONResponse([])
+    
+    # 1. 완전 일치 이름/코드
+    exact_matches = db.query(Student).filter(
+        (Student.name == q) | (Student.student_code == q.upper())
+    ).all()
+    
+    # 2. 부분 일치 (만약 완전 일치 없거나 적은 경우)
+    if len(exact_matches) < 5:
+        partial_matches = db.query(Student).filter(
+            (Student.name.ilike(f"%{q}%")) | (Student.student_code.ilike(f"%{q}%"))
+        ).limit(10).all()
+        # 합치기 및 중복 제거
+        combined = {s.id: s for s in exact_matches + partial_matches}.values()
+    else:
+        combined = exact_matches
+
+    results = [
+        {
+            "id": s.id,
+            "student_code": s.student_code,
+            "name": s.name,
+            "department": s.department or "미지정",
+            "age": s.age,
+            "photo_url": s.photo_url or "/static/uploads/profiles/default_avatar.svg",
+            "is_active": s.is_active
+        }
+        for s in combined
+    ]
+    return JSONResponse(results)
+
+
 @router.get("/login", response_class=HTMLResponse)
-async def login_page(request: Request):
+async def login_page(request: Request, name: Optional[str] = None, db: Session = Depends(get_db)):
     error = request.query_params.get("error")
-    return templates.TemplateResponse("student/login.html", {"request": request, "error": error})
+    candidates = []
+    if name:
+        candidates = db.query(Student).filter(Student.name == name.strip()).all()
+    return templates.TemplateResponse("student/login.html", {
+        "request": request,
+        "error": error,
+        "searched_name": name or "",
+        "candidates": candidates
+    })
 
 
 @router.get("/register", response_class=HTMLResponse)

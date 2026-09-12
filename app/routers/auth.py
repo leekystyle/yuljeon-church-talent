@@ -37,14 +37,40 @@ async def admin_logout():
     return response
 
 
+import urllib.parse
+
 @router.post("/student/login")
 async def student_login(
-    student_code: str = Form(...),
+    student_code: Optional[str] = Form(None),
+    student_id: Optional[int] = Form(None),
     password: str = Form(...),
     db: Session = Depends(get_db)
 ):
-    """학생 로그인"""
-    student = db.query(Student).filter(Student.student_code == student_code.strip()).first()
+    """학생 로그인 (학생 ID 또는 이름 지원, 동명이인 분기)"""
+    student = None
+    
+    # 1. 학생 ID(PK)가 명시적으로 넘어온 경우 (동명이인 목록에서 선택한 경우)
+    if student_id:
+        student = db.query(Student).filter(Student.id == student_id).first()
+    elif student_code and student_code.strip():
+        val = student_code.strip()
+        # 1-1. 고유번호(student_code)로 먼저 조회
+        code_match = db.query(Student).filter(Student.student_code.ilike(val)).first()
+        if code_match:
+            student = code_match
+        else:
+            # 1-2. 이름(name)으로 조회
+            name_matches = db.query(Student).filter(Student.name == val).all()
+            if len(name_matches) == 1:
+                student = name_matches[0]
+            elif len(name_matches) > 1:
+                # 동명이인이 2명 이상인 경우 -> 선택 화면으로 리다이렉트
+                encoded_name = urllib.parse.quote(val)
+                return RedirectResponse(
+                    url=f"/student/login?error=multiple_candidates&name={encoded_name}",
+                    status_code=status.HTTP_303_SEE_OTHER
+                )
+
     if not student or student.password_hash != password:
         return RedirectResponse(url="/student/login?error=invalid_credentials", status_code=status.HTTP_303_SEE_OTHER)
     

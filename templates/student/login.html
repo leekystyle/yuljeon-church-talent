@@ -3,36 +3,86 @@
 {% block title %}학생 로그인 - 율전중앙교회 달란트 포털{% endblock %}
 
 {% block content %}
-<div style="max-width: 420px; margin: 2rem auto;">
-  <div class="card" style="padding: 2.5rem 2rem;">
+<div style="max-width: 480px; margin: 2rem auto;">
+  <div class="card" style="padding: 2.5rem 2rem; border-radius: 1.25rem; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.07);">
     <div style="text-align: center; margin-bottom: 1.5rem;">
       <div style="font-size: 2.8rem; margin-bottom: 0.5rem;">🙋‍♂️</div>
-      <h2 style="color: #1e3a8a; font-weight: 800;">학생 포털 로그인</h2>
-      <p style="color: var(--text-muted); font-size: 0.9rem;">
-        나의 달란트 잔액과 상세 내역을 확인해 보세요.
+      <h2 style="color: #1e3a8a; font-weight: 800; font-size: 1.5rem;">학생 포털 로그인</h2>
+      <p style="color: var(--text-muted); font-size: 0.92rem; margin-top: 0.3rem;">
+        이름 또는 학생 번호로 간편하게 로그인하세요.
       </p>
     </div>
 
     {% if error == 'invalid_credentials' %}
-    <div class="alert alert-danger">
-      ⚠️ 학생 ID 또는 비밀번호가 일치하지 않습니다.
+    <div class="alert alert-danger" style="border-radius: 0.75rem; margin-bottom: 1.2rem;">
+      ⚠️ 이름(또는 번호)과 비밀번호가 일치하지 않습니다.
     </div>
     {% elif error == 'pending_approval' %}
-    <div class="alert alert-info">
+    <div class="alert alert-info" style="border-radius: 0.75rem; margin-bottom: 1.2rem;">
       ⏳ 가입 승인 대기 중입니다. 선생님(관리자)의 승인 후 로그인할 수 있습니다.
+    </div>
+    {% elif error == 'multiple_candidates' %}
+    <div class="alert alert-warning" style="border-radius: 0.75rem; margin-bottom: 1.2rem; background: #fef3c7; color: #92400e; border: 1px solid #fde68a;">
+      👥 '<strong>{{ searched_name }}</strong>' 이름을 가진 친구가 여러 명 있습니다!<br>
+      아래 카드에서 <strong>본인의 얼굴과 소속부서</strong>를 선택해 주세요.
     </div>
     {% endif %}
 
-    <form action="/auth/student/login" method="POST">
-      <div class="form-group">
-        <label class="form-label" for="student_code">학생 ID (고유번호)</label>
-        <input type="text" id="student_code" name="student_code" class="form-control" placeholder="예: S001" required autofocus>
+    <form id="studentLoginForm" action="/auth/student/login" method="POST">
+      <!-- 숨겨진 필드: 동명이인 중 선택된 학생 ID -->
+      <input type="hidden" id="selected_student_id" name="student_id" value="">
+
+      <div class="form-group" style="margin-bottom: 1.2rem;">
+        <label class="form-label" for="student_identifier" style="font-weight: 700; color: #1e293b; display: flex; justify-content: space-between;">
+          <span>이름 또는 학생 ID</span>
+          <span style="font-size: 0.8rem; color: #3b82f6; font-weight: normal;">* 이름만 입력해도 OK!</span>
+        </label>
+        <input type="text" id="student_identifier" name="student_code" class="form-control" 
+               placeholder="예: 홍길동 또는 S001" 
+               value="{{ searched_name }}"
+               autocomplete="off"
+               required autofocus
+               style="font-size: 1.05rem; padding: 0.75rem 1rem; border-radius: 0.75rem;">
       </div>
-      <div class="form-group">
-        <label class="form-label" for="password">비밀번호</label>
-        <input type="password" id="password" name="password" class="form-control" placeholder="비밀번호 입력 (초기값: 0000)" required>
+
+      <!-- 동명이인 또는 검색 후보 선택 영역 (서버 렌더링 + JS 실시간 검색 공용) -->
+      <div id="candidates_container" style="{% if not candidates %}display: none;{% endif %} margin-bottom: 1.2rem;">
+        <div style="font-size: 0.85rem; font-weight: 700; color: #475569; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between;">
+          <span>👇 본인 카드를 터치하여 선택해 주세요:</span>
+          <span id="selected_badge" style="display: none; background: #dcfce7; color: #15803d; padding: 0.15rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 800;">선택 완료 ✓</span>
+        </div>
+        <div id="candidates_list" style="display: grid; grid-template-columns: 1fr; gap: 0.5rem; max-height: 220px; overflow-y: auto; padding-right: 2px;">
+          {% for c in candidates %}
+          <div class="candidate-card" onclick="selectCandidate({{ c.id }}, '{{ c.name }}', '{{ c.student_code }}', this)" 
+               style="display: flex; align-items: center; gap: 0.75rem; padding: 0.65rem 0.85rem; border: 2px solid #e2e8f0; border-radius: 0.75rem; cursor: pointer; transition: all 0.2s; background: #f8fafc;">
+            <img src="{{ c.photo_url or '/static/uploads/profiles/default_avatar.svg' }}" 
+                 style="width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 1px solid #cbd5e1; background: #fff;"
+                 alt="프로필">
+            <div style="flex: 1;">
+              <div style="font-weight: 800; color: #0f172a; font-size: 1rem;">
+                {{ c.name }} 
+                <span style="font-size: 0.8rem; font-weight: normal; color: #64748b;">({{ c.student_code }})</span>
+              </div>
+              <div style="font-size: 0.82rem; color: #475569; margin-top: 0.1rem;">
+                소속: <span style="font-weight: 700; color: #2563eb;">{{ c.department or '미지정' }}</span>
+                {% if c.age %} | 나이: {{ c.age }}세{% endif %}
+              </div>
+            </div>
+            <div class="check-mark" style="font-size: 1.2rem; color: #cbd5e1;">◯</div>
+          </div>
+          {% endfor %}
+        </div>
       </div>
-      <button type="submit" class="btn btn-primary btn-lg" style="width: 100%; margin-top: 0.5rem;">
+
+      <div class="form-group" style="margin-bottom: 1.5rem;">
+        <label class="form-label" for="password" style="font-weight: 700; color: #1e293b;">비밀번호</label>
+        <input type="password" id="password" name="password" class="form-control" 
+               placeholder="비밀번호 입력 (초기값: 0000)" 
+               required
+               style="font-size: 1.05rem; padding: 0.75rem 1rem; border-radius: 0.75rem;">
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-lg" style="width: 100%; border-radius: 0.75rem; font-size: 1.05rem; font-weight: 800; padding: 0.85rem;">
         로그인 ➔
       </button>
     </form>
@@ -45,4 +95,93 @@
     </div>
   </div>
 </div>
+
+<script>
+let searchTimeout = null;
+
+function selectCandidate(id, name, code, element) {
+  document.getElementById('selected_student_id').value = id;
+  
+  // 모든 후보 카드 스타일 초기화
+  document.querySelectorAll('.candidate-card').forEach(el => {
+    el.style.border = '2px solid #e2e8f0';
+    el.style.background = '#f8fafc';
+    const check = el.querySelector('.check-mark');
+    if (check) {
+      check.innerHTML = '◯';
+      check.style.color = '#cbd5e1';
+    }
+  });
+
+  // 선택된 카드 하이라이트
+  element.style.border = '2px solid #2563eb';
+  element.style.background = '#eff6ff';
+  const check = element.querySelector('.check-mark');
+  if (check) {
+    check.innerHTML = '✅';
+    check.style.color = '#2563eb';
+  }
+  
+  document.getElementById('selected_badge').style.display = 'inline-block';
+  document.getElementById('password').focus();
+}
+
+// 이름/코드 입력 필드 실시간 검색
+const identifierInput = document.getElementById('student_identifier');
+identifierInput.addEventListener('input', function(e) {
+  const query = e.target.value.trim();
+  document.getElementById('selected_student_id').value = '';
+  document.getElementById('selected_badge').style.display = 'none';
+
+  if (searchTimeout) clearTimeout(searchTimeout);
+  if (!query) {
+    document.getElementById('candidates_container').style.display = 'none';
+    return;
+  }
+
+  searchTimeout = setTimeout(async () => {
+    try {
+      const res = await fetch(`/student/api/lookup?query=${encodeURIComponent(query)}`);
+      const data = await res.json();
+
+      const container = document.getElementById('candidates_container');
+      const list = document.getElementById('candidates_list');
+
+      if (data && data.length > 0) {
+        list.innerHTML = '';
+        data.forEach(item => {
+          const card = document.createElement('div');
+          card.className = 'candidate-card';
+          card.style = 'display: flex; align-items: center; gap: 0.75rem; padding: 0.65rem 0.85rem; border: 2px solid #e2e8f0; border-radius: 0.75rem; cursor: pointer; transition: all 0.2s; background: #f8fafc;';
+          card.onclick = () => selectCandidate(item.id, item.name, item.student_code, card);
+          card.innerHTML = `
+            <img src="${item.photo_url}" style="width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 1px solid #cbd5e1; background: #fff;" alt="프로필">
+            <div style="flex: 1;">
+              <div style="font-weight: 800; color: #0f172a; font-size: 1rem;">
+                ${item.name} <span style="font-size: 0.8rem; font-weight: normal; color: #64748b;">(${item.student_code})</span>
+              </div>
+              <div style="font-size: 0.82rem; color: #475569; margin-top: 0.1rem;">
+                소속: <span style="font-weight: 700; color: #2563eb;">${item.department}</span>
+                ${item.age ? ` | 나이: ${item.age}세` : ''}
+              </div>
+            </div>
+            <div class="check-mark" style="font-size: 1.2rem; color: #cbd5e1;">◯</div>
+          `;
+          list.appendChild(card);
+        });
+        container.style.display = 'block';
+        
+        // 검색 결과가 정확히 1명이고 이름이나 코드가 일치하면 자동 선택 편의성 제공
+        if (data.length === 1 && (data[0].name === query || data[0].student_code.toUpperCase() === query.toUpperCase())) {
+          selectCandidate(data[0].id, data[0].name, data[0].student_code, list.firstElementChild);
+        }
+      } else {
+        container.style.display = 'none';
+      }
+    } catch (err) {
+      console.error('검색 실패:', err);
+    }
+  }, 250);
+});
+</script>
 {% endblock %}

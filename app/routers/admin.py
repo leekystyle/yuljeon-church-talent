@@ -11,7 +11,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.database import get_db
 from app.models import (
-    Student, TalentRule, TalentEarning, Item, Order, OrderItem, AnnualReset, AnnualSnapshot
+    Student, TalentRule, TalentEarning, Item, Order, OrderItem, AnnualReset, AnnualSnapshot,
+    Department, RuleCategory
 )
 from app.config import ADMIN_PW
 from app.timezone import get_kst_now
@@ -84,9 +85,11 @@ async def list_students(request: Request, search: Optional[str] = None, dept: Op
         query = query.filter(Student.department == dept.strip())
 
     students = query.order_by(Student.student_code.asc()).all()
+    departments = [d.name for d in db.query(Department).filter(Department.is_active == True).order_by(Department.display_order.asc(), Department.id.asc()).all()]
     return templates.TemplateResponse("admin/students.html", {
         "request": request,
         "students": students,
+        "departments": departments,
         "search": search or "",
         "dept": dept or ""
     })
@@ -394,7 +397,7 @@ async def grant_talent_page(request: Request, db: Session = Depends(get_db)):
     check_admin(request)
     students = db.query(Student).filter(Student.is_active == True).order_by(Student.department.asc(), Student.name.asc()).all()
     rules = db.query(TalentRule).filter(TalentRule.is_active == True).all()
-    departments = ["유치부", "아동부", "청소년부"]
+    departments = [d.name for d in db.query(Department).filter(Department.is_active == True).order_by(Department.display_order.asc(), Department.id.asc()).all()]
     return templates.TemplateResponse("admin/talent_grant.html", {
         "request": request,
         "students": students,
@@ -562,7 +565,12 @@ async def upload_talent_csv(
 async def manage_rules(request: Request, db: Session = Depends(get_db)):
     check_admin(request)
     rules = db.query(TalentRule).order_by(TalentRule.id.asc()).all()
-    return templates.TemplateResponse("admin/talent_rules.html", {"request": request, "rules": rules})
+    categories = db.query(RuleCategory).filter(RuleCategory.is_active == True).order_by(RuleCategory.display_order.asc(), RuleCategory.id.asc()).all()
+    return templates.TemplateResponse("admin/talent_rules.html", {
+        "request": request,
+        "rules": rules,
+        "categories": categories
+    })
 
 
 @router.post("/talent/rules/create")
@@ -571,24 +579,49 @@ async def create_rule(
     category: str = Form(...),
     points: int = Form(...),
     description: Optional[str] = Form(None),
-    is_public: bool = Form(True),
+    is_public: Optional[str] = Form(None),
     db: Session = Depends(get_db)
 ):
     count = db.query(TalentRule).count()
     rule_code = f"R{count + 1:03d}"
+    is_pub = (is_public == "true" or is_public == "on" or is_public is True)
     rule = TalentRule(
         rule_code=rule_code,
         title=title.strip(),
         category=category.strip(),
         points=points,
         description=description.strip() if description else None,
-        is_public=is_public,
+        is_public=is_pub,
         is_active=True,
         created_at=get_kst_now()
     )
     db.add(rule)
     db.commit()
     return RedirectResponse(url="/admin/talent/rules?msg=created", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/talent/rules/{rule_id}/edit")
+async def edit_rule(
+    rule_id: int,
+    request: Request,
+    title: str = Form(...),
+    category: str = Form(...),
+    points: int = Form(...),
+    description: Optional[str] = Form(None),
+    is_public: Optional[str] = Form(None),
+    db: Session = Depends(get_db)
+):
+    """지급 기준 수정 및 공개여부 변경"""
+    check_admin(request)
+    rule = db.query(TalentRule).filter(TalentRule.id == rule_id).first()
+    if rule:
+        rule.title = title.strip()
+        rule.category = category.strip()
+        rule.points = points
+        rule.description = description.strip() if description else None
+        rule.is_public = (is_public == "true" or is_public == "on" or is_public is True)
+        db.commit()
+    return RedirectResponse(url="/admin/talent/rules?msg=updated", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @router.post("/talent/rules/{rule_id}/delete")
@@ -996,3 +1029,118 @@ async def execute_annual_reset(
     db.commit()
 
     return RedirectResponse(url="/admin/annual_reset?msg=reset_completed", status_code=status.HTTP_303_SEE_OTHER)
+
+
+# -------------------------------------------------------------
+# 11. 시스템 환경 설정 (소속부서 및 지급 기준 분류 관리)
+# -------------------------------------------------------------
+@router.get("/settings", response_class=HTMLResponse)
+async def settings_page(request: Request, db: Session = Depends(get_db)):
+    check_admin(request)
+    departments = db.query(Department).order_by(Department.display_order.asc(), Department.id.asc()).all()
+    categories = db.query(RuleCategory).order_by(RuleCategory.display_order.asc(), RuleCategory.id.asc()).all()
+    return templates.TemplateResponse("admin/settings.html", {
+        "request": request,
+        "departments": departments,
+        "categories": categories
+    })
+
+
+@router.post("/settings/departments/create")
+async def create_department(
+    request: Request,
+    name: str = Form(...),
+    display_order: int = Form(1),
+    db: Session = Depends(get_db)
+):
+    check_admin(request)
+    clean_name = name.strip()
+    if db.query(Department).filter(Department.name == clean_name).first():
+        return RedirectResponse(url="/admin/settings?error=dept_duplicate", status_code=status.HTTP_303_SEE_OTHER)
+    new_dept = Department(name=clean_name, display_order=display_order, is_active=True, created_at=get_kst_now())
+    db.add(new_dept)
+    db.commit()
+    return RedirectResponse(url="/admin/settings?msg=dept_created", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/settings/departments/{dept_id}/edit")
+async def edit_department(
+    dept_id: int,
+    request: Request,
+    name: str = Form(...),
+    display_order: int = Form(1),
+    is_active: Optional[str] = Form(None),
+    db: Session = Depends(get_db)
+):
+    check_admin(request)
+    dept = db.query(Department).filter(Department.id == dept_id).first()
+    if dept:
+        clean_name = name.strip()
+        existing = db.query(Department).filter(Department.name == clean_name, Department.id != dept_id).first()
+        if existing:
+            return RedirectResponse(url="/admin/settings?error=dept_duplicate", status_code=status.HTTP_303_SEE_OTHER)
+        dept.name = clean_name
+        dept.display_order = display_order
+        dept.is_active = (is_active == "true" or is_active is True)
+        db.commit()
+    return RedirectResponse(url="/admin/settings?msg=dept_updated", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/settings/departments/{dept_id}/delete")
+async def delete_department(dept_id: int, request: Request, db: Session = Depends(get_db)):
+    check_admin(request)
+    dept = db.query(Department).filter(Department.id == dept_id).first()
+    if dept:
+        db.delete(dept)
+        db.commit()
+    return RedirectResponse(url="/admin/settings?msg=dept_deleted", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/settings/categories/create")
+async def create_category(
+    request: Request,
+    name: str = Form(...),
+    display_order: int = Form(1),
+    db: Session = Depends(get_db)
+):
+    check_admin(request)
+    clean_name = name.strip()
+    if db.query(RuleCategory).filter(RuleCategory.name == clean_name).first():
+        return RedirectResponse(url="/admin/settings?error=cat_duplicate", status_code=status.HTTP_303_SEE_OTHER)
+    new_cat = RuleCategory(name=clean_name, display_order=display_order, is_active=True, created_at=get_kst_now())
+    db.add(new_cat)
+    db.commit()
+    return RedirectResponse(url="/admin/settings?msg=cat_created", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/settings/categories/{cat_id}/edit")
+async def edit_category(
+    cat_id: int,
+    request: Request,
+    name: str = Form(...),
+    display_order: int = Form(1),
+    is_active: Optional[str] = Form(None),
+    db: Session = Depends(get_db)
+):
+    check_admin(request)
+    cat = db.query(RuleCategory).filter(RuleCategory.id == cat_id).first()
+    if cat:
+        clean_name = name.strip()
+        existing = db.query(RuleCategory).filter(RuleCategory.name == clean_name, RuleCategory.id != cat_id).first()
+        if existing:
+            return RedirectResponse(url="/admin/settings?error=cat_duplicate", status_code=status.HTTP_303_SEE_OTHER)
+        cat.name = clean_name
+        cat.display_order = display_order
+        cat.is_active = (is_active == "true" or is_active is True)
+        db.commit()
+    return RedirectResponse(url="/admin/settings?msg=cat_updated", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/settings/categories/{cat_id}/delete")
+async def delete_category(cat_id: int, request: Request, db: Session = Depends(get_db)):
+    check_admin(request)
+    cat = db.query(RuleCategory).filter(RuleCategory.id == cat_id).first()
+    if cat:
+        db.delete(cat)
+        db.commit()
+    return RedirectResponse(url="/admin/settings?msg=cat_deleted", status_code=status.HTTP_303_SEE_OTHER)

@@ -108,26 +108,41 @@
 
 <!-- 학생 로그인 모달 -->
 <div id="login-modal" class="modal-backdrop">
-  <div class="modal-content">
-    <h3 style="margin-bottom: 0.5rem; color: #1e3a8a;">🙋‍♂️ 매점 학생 로그인</h3>
-    <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem;">
-      본인의 학생 ID(예: S001)와 비밀번호를 입력해 주세요.
+  <div class="modal-content" style="max-width: 440px;">
+    <h3 style="margin-bottom: 0.3rem; color: #1e3a8a;">🙋‍♂️ 매점 학생 로그인</h3>
+    <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.2rem;">
+      이름 또는 학생 ID(번호)와 비밀번호를 입력해 주세요.
     </p>
 
-    <div id="login-error" class="alert alert-danger" style="display: none;"></div>
+    <div id="login-error" class="alert alert-danger" style="display: none; border-radius: 0.75rem; margin-bottom: 1rem;"></div>
 
     <form id="kiosk-login-form" onsubmit="handleKioskLogin(event)">
-      <div class="form-group">
-        <label class="form-label" for="login-student-code">학생 ID</label>
-        <input type="text" id="login-student-code" class="form-control" placeholder="예: S001" required>
+      <input type="hidden" id="login-student-id" value="">
+
+      <div class="form-group" style="margin-bottom: 1rem;">
+        <label class="form-label" for="login-student-code" style="display: flex; justify-content: space-between;">
+          <span>이름 또는 학생 ID</span>
+          <span style="font-size: 0.8rem; color: #3b82f6;">* 이름만 쳐도 됩니다</span>
+        </label>
+        <input type="text" id="login-student-code" class="form-control" placeholder="예: 홍길동 또는 S001" autocomplete="off" required>
       </div>
-      <div class="form-group">
+
+      <!-- 동명이인 및 검색 후보 카드 목록 -->
+      <div id="kiosk-candidates-container" style="display: none; margin-bottom: 1rem;">
+        <div style="font-size: 0.85rem; font-weight: 700; color: #475569; margin-bottom: 0.4rem;">
+          👇 본인의 얼굴과 소속부서를 선택해 주세요:
+        </div>
+        <div id="kiosk-candidates-list" style="display: grid; grid-template-columns: 1fr; gap: 0.4rem; max-height: 180px; overflow-y: auto; padding-right: 2px;">
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 1.2rem;">
         <label class="form-label" for="login-password">비밀번호</label>
         <input type="password" id="login-password" class="form-control" placeholder="비밀번호 입력 (초기값: 0000)" required>
       </div>
       <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
         <button type="button" class="btn btn-outline" style="flex: 1;" onclick="closeLoginModal()">취소</button>
-        <button type="submit" class="btn btn-primary" style="flex: 2;">로그인</button>
+        <button type="submit" class="btn btn-primary" style="flex: 2; font-weight: 800;">로그인 ➔</button>
       </div>
     </form>
   </div>
@@ -375,12 +390,79 @@
     document.getElementById('login-modal').classList.remove('show');
   }
 
+  let kioskSearchTimer = null;
+
+  function selectKioskCandidate(id, element) {
+    document.getElementById('login-student-id').value = id;
+    document.querySelectorAll('.kiosk-candidate-card').forEach(el => {
+      el.style.borderColor = '#e2e8f0';
+      el.style.backgroundColor = '#f8fafc';
+    });
+    element.style.borderColor = '#2563eb';
+    element.style.backgroundColor = '#eff6ff';
+    document.getElementById('login-password').focus();
+  }
+
+  function renderKioskCandidates(candidates) {
+    const container = document.getElementById('kiosk-candidates-container');
+    const list = document.getElementById('kiosk-candidates-list');
+    list.innerHTML = '';
+
+    candidates.forEach(c => {
+      const card = document.createElement('div');
+      card.className = 'kiosk-candidate-card';
+      card.style = 'display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0.75rem; border: 2px solid #e2e8f0; border-radius: 0.6rem; cursor: pointer; transition: all 0.2s; background: #f8fafc;';
+      card.onclick = () => selectKioskCandidate(c.id, card);
+      card.innerHTML = `
+        <img src="${c.photo_url || '/static/uploads/profiles/default_avatar.svg'}" style="width: 38px; height: 38px; border-radius: 50%; object-fit: cover; border: 1px solid #cbd5e1; background: #fff;">
+        <div style="flex: 1;">
+          <div style="font-weight: 800; color: #0f172a; font-size: 0.95rem;">${c.name} <span style="font-size: 0.8rem; color: #64748b; font-weight: normal;">(${c.student_code})</span></div>
+          <div style="font-size: 0.78rem; color: #475569;">부서: <strong style="color: #2563eb;">${c.department}</strong>${c.age ? ` | ${c.age}세` : ''}</div>
+        </div>
+      `;
+      list.appendChild(card);
+    });
+    container.style.display = 'block';
+  }
+
+  // 이름/코드 입력 실시간 검색
+  const kioskCodeInput = document.getElementById('login-student-code');
+  if (kioskCodeInput) {
+    kioskCodeInput.addEventListener('input', function(e) {
+      const query = e.target.value.trim();
+      document.getElementById('login-student-id').value = '';
+      if (kioskSearchTimer) clearTimeout(kioskSearchTimer);
+      if (!query) {
+        document.getElementById('kiosk-candidates-container').style.display = 'none';
+        return;
+      }
+      kioskSearchTimer = setTimeout(async () => {
+        try {
+          const res = await fetch(`/student/api/lookup?query=${encodeURIComponent(query)}`);
+          const data = await res.json();
+          if (data && data.length > 0) {
+            renderKioskCandidates(data);
+            if (data.length === 1 && (data[0].name === query || data[0].student_code.toUpperCase() === query.toUpperCase())) {
+              selectKioskCandidate(data[0].id, document.getElementById('kiosk-candidates-list').firstElementChild);
+            }
+          } else {
+            document.getElementById('kiosk-candidates-container').style.display = 'none';
+          }
+        } catch(e) {}
+      }, 250);
+    });
+  }
+
   async function handleKioskLogin(e) {
     e.preventDefault();
     const code = document.getElementById('login-student-code').value;
+    const studentId = document.getElementById('login-student-id').value;
     const pw = document.getElementById('login-password').value;
 
     const fd = new FormData();
+    if (studentId) {
+      fd.append('student_id', studentId);
+    }
     fd.append('student_code', code);
     fd.append('password', pw);
 
@@ -390,6 +472,10 @@
       const err = document.getElementById('login-error');
       err.innerText = data.message;
       err.style.display = 'block';
+
+      if (data.multiple && data.candidates) {
+        renderKioskCandidates(data.candidates);
+      }
       return;
     }
     location.reload();

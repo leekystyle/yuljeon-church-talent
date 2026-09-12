@@ -155,3 +155,25 @@ class AnnualSnapshot(Base):
     # 관계 정의
     reset_master = relationship("AnnualReset", back_populates="snapshots")
     student = relationship("Student", back_populates="snapshots")
+
+
+class Department(Base):
+    """학생 소속부서 설정 테이블 ('yuljeon-departments')"""
+    __tablename__ = "yuljeon-departments"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    name = Column(String(50), unique=True, nullable=False)                      # 소속부서명 (유치부, 아동부, 청소년부 등)
+    display_order = Column(Integer, default=0, nullable=False)                  # 표시 순서
+    is_active = Column(Boolean, default=True, nullable=False)                   # 활성화 여부
+    created_at = Column(DateTime(timezone=True), default=get_kst_now, nullable=False)
+
+
+class RuleCategory(Base):
+    """달란트 지급 기준 분류 설정 테이블 ('yuljeon-rule_categories')"""
+    __tablename__ = "yuljeon-rule_categories"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    name = Column(String(50), unique=True, nullable=False)                      # 기준 분류명 (예배, 전도, 봉사, 암송 등)
+    display_order = Column(Integer, default=0, nullable=False)                  # 표시 순서
+    is_active = Column(Boolean, default=True, nullable=False)                   # 활성화 여부
+    created_at = Column(DateTime(timezone=True), default=get_kst_now, nullable=False)
