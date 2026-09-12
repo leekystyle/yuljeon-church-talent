@@ -51,6 +51,12 @@ async def student_login(
     if not student.is_active:
         return RedirectResponse(url="/student/login?error=pending_approval", status_code=status.HTTP_303_SEE_OTHER)
 
+    # 초기 비밀번호(0000)인 경우 최초 4자리 비밀번호 변경 화면으로 강제 이동
+    if student.password_hash == "0000":
+        response = RedirectResponse(url="/student/change_password?first_login=true", status_code=status.HTTP_303_SEE_OTHER)
+        response.set_cookie(key="yuljeon_student_id", value=str(student.id), max_age=86400 * 3, httponly=True)
+        return response
+
     response = RedirectResponse(url="/student/dashboard", status_code=status.HTTP_303_SEE_OTHER)
     response.set_cookie(key="yuljeon_student_id", value=str(student.id), max_age=86400 * 3, httponly=True)
     return response
@@ -58,7 +64,7 @@ async def student_login(
 
 @router.get("/student/logout")
 async def student_logout():
-    """학생 로그아웃"""
-    response = RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+    """학생 로그아웃 (학생 포털 로그인 화면으로 복귀)"""
+    response = RedirectResponse(url="/student/login", status_code=status.HTTP_303_SEE_OTHER)
     response.delete_cookie("yuljeon_student_id")
     return response

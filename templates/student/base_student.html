@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}율전중앙교회 학생 달란트 포털{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/main.css">
+  <style>
+    /* 학생 전용 독립 포털 테마 스타일 */
+    .student-navbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.9rem 1.5rem;
+      background: #ffffff;
+      border-bottom: 2px solid #e2e8f0;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .student-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-weight: 800;
+      font-size: 1.25rem;
+      color: #1e3a8a;
+      text-decoration: none;
+    }
+    .student-badge {
+      background: #10b981;
+      color: white;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+    }
+    .student-nav-links {
+      display: flex;
+      gap: 0.8rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .student-nav-item {
+      color: #334155;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.92rem;
+      padding: 0.4rem 0.75rem;
+      border-radius: 6px;
+      transition: all 0.15s ease;
+    }
+    .student-nav-item:hover {
+      background: #f1f5f9;
+      color: #1e3a8a;
+    }
+    .student-nav-item.logout {
+      color: #ef4444;
+      border: 1px solid #fecaca;
+    }
+    .student-nav-item.logout:hover {
+      background: #fee2e2;
+    }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <!-- 학생 포털 전용 독립 내비게이션 바 (키오스크, 관리자 등 타 메뉴 일체 미노출) -->
+  <header class="student-navbar">
+    <a href="/student/dashboard" class="student-brand">
+      <span>✨ 율전중앙교회</span>
+      <span class="student-badge">학생 포털</span>
+    </a>
+    <nav class="student-nav-links">
+      {% if student %}
+      <a href="/student/dashboard" class="student-nav-item">🏠 내 달란트</a>
+      <a href="/student/history" class="student-nav-item">📋 활동 내역</a>
+      <a href="/student/rules" class="student-nav-item">📜 기준표/물품</a>
+      <a href="/student/change_password" class="student-nav-item">🔐 비밀번호 변경</a>
+      <a href="/auth/student/logout" class="student-nav-item logout">로그아웃</a>
+      {% else %}
+      <a href="/student/login" class="student-nav-item">🔑 로그인</a>
+      <a href="/student/register" class="student-nav-item">📝 회원가입</a>
+      {% endif %}
+    </nav>
+  </header>
+
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer>
+    <p>© 2026 율전중앙교회 교회학교 학생 달란트 포털</p>
+  </footer>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

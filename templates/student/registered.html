@@ -1,6 +1,6 @@
-{% extends "base.html" %}
+{% extends "student/base_student.html" %}
 
-{% block title %}가입 신청 완료 - 율전중앙교회 달란트{% endblock %}
+{% block title %}가입 신청 완료 - 율전중앙교회 학생 달란트 포털{% endblock %}
 
 {% block content %}
 <div style="max-width: 480px; margin: 2.5rem auto; text-align: center;">
@@ -25,9 +25,8 @@
       주일 교회에 오셔서 선생님께 가입 승인을 요청해 주세요.
     </div>
 
-    <div style="display: flex; gap: 0.8rem;">
-      <a href="/" class="btn btn-outline" style="flex: 1;">홈으로</a>
-      <a href="/student/login" class="btn btn-primary" style="flex: 1;">로그인 화면 ➔</a>
+    <div>
+      <a href="/student/login" class="btn btn-primary" style="width: 100%;">로그인 화면으로 이동 ➔</a>
     </div>
   </div>
 </div>

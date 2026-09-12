@@ -1,5 +1,6 @@
 import os
 import shutil
+import re
 from typing import Optional
 from fastapi import APIRouter, Request, Depends, Form, UploadFile, File, status
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -98,6 +99,10 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
     student = get_current_student(request, db)
     if not student:
         return RedirectResponse(url="/student/login", status_code=status.HTTP_303_SEE_OTHER)
+
+    # 최초 로그인 시 초기 비밀번호(0000) 변경 강제
+    if student.password_hash == "0000":
+        return RedirectResponse(url="/student/change_password?first_login=true", status_code=status.HTTP_303_SEE_OTHER)
     
     # 최근 적립 5건, 최근 사용 5건
     recent_earnings = db.query(TalentEarning).filter(TalentEarning.student_id == student.id)\
@@ -119,6 +124,9 @@ async def history(request: Request, db: Session = Depends(get_db)):
     if not student:
         return RedirectResponse(url="/student/login", status_code=status.HTTP_303_SEE_OTHER)
 
+    if student.password_hash == "0000":
+        return RedirectResponse(url="/student/change_password?first_login=true", status_code=status.HTTP_303_SEE_OTHER)
+
     earnings = db.query(TalentEarning).filter(TalentEarning.student_id == student.id)\
         .order_by(TalentEarning.created_at.desc()).all()
     orders = db.query(Order).filter(Order.student_id == student.id)\
@@ -135,6 +143,9 @@ async def history(request: Request, db: Session = Depends(get_db)):
 @router.get("/rules", response_class=HTMLResponse)
 async def public_rules(request: Request, db: Session = Depends(get_db)):
     student = get_current_student(request, db)
+    if student and student.password_hash == "0000":
+        return RedirectResponse(url="/student/change_password?first_login=true", status_code=status.HTTP_303_SEE_OTHER)
+
     rules = db.query(TalentRule).filter(TalentRule.is_public == True, TalentRule.is_active == True).all()
     items = db.query(Item).filter(Item.is_active == True).all()
 
@@ -144,3 +155,55 @@ async def public_rules(request: Request, db: Session = Depends(get_db)):
         "rules": rules,
         "items": items
     })
+
+
+@router.get("/change_password", response_class=HTMLResponse)
+async def change_password_page(request: Request, db: Session = Depends(get_db)):
+    """학생 비밀번호 변경 화면 (최초 로그인 강제 변경 및 일반 변경 겸용)"""
+    student = get_current_student(request, db)
+    if not student:
+        return RedirectResponse(url="/student/login", status_code=status.HTTP_303_SEE_OTHER)
+
+    first_login = request.query_params.get("first_login") == "true" or student.password_hash == "0000"
+    error = request.query_params.get("error")
+    return templates.TemplateResponse("student/change_password.html", {
+        "request": request,
+        "student": student,
+        "first_login": first_login,
+        "error": error
+    })
+
+
+@router.post("/change_password")
+async def change_password(
+    request: Request,
+    new_password: str = Form(...),
+    confirm_password: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    """학생 비밀번호 숫자 4자리 변경 처리"""
+    student = get_current_student(request, db)
+    if not student:
+        return RedirectResponse(url="/student/login", status_code=status.HTTP_303_SEE_OTHER)
+
+    new_pw = new_password.strip()
+    conf_pw = confirm_password.strip()
+
+    # 숫자 4자리 정규식 검증
+    if not re.match(r"^\d{4}$", new_pw):
+        return RedirectResponse(url="/student/change_password?error=format_error", status_code=status.HTTP_303_SEE_OTHER)
+
+    # 초기 비밀번호 0000 사용 금지
+    if new_pw == "0000":
+        return RedirectResponse(url="/student/change_password?error=default_forbidden", status_code=status.HTTP_303_SEE_OTHER)
+
+    # 비밀번호 확인 일치 여부
+    if new_pw != conf_pw:
+        return RedirectResponse(url="/student/change_password?error=mismatch", status_code=status.HTTP_303_SEE_OTHER)
+
+    student.password_hash = new_pw
+    student.updated_at = get_kst_now()
+    db.commit()
+
+    return RedirectResponse(url="/student/dashboard?msg=password_changed", status_code=status.HTTP_303_SEE_OTHER)
+

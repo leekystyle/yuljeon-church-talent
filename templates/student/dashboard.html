@@ -1,10 +1,16 @@
-{% extends "base.html" %}
+{% extends "student/base_student.html" %}
 
 {% block title %}마이 달란트 - {{ student.name }} 학생{% endblock %}
 
 {% block content %}
+{% if request.query_params.get('msg') == 'password_changed' %}
+<div class="alert alert-success" style="margin-bottom: 1.5rem;">
+  🎉 비밀번호가 안전하게 변경되었습니다! 앞으로 이 비밀번호로 로그인해 주세요.
+</div>
+{% endif %}
+
 <!-- 학생 상단 프로필 헤더 카드 -->
-<div class="card" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 2rem;">
+<div class="card" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 2rem; margin-bottom: 1.5rem;">
   <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1.5rem;">
     <div style="display: flex; align-items: center; gap: 1.2rem;">
       <img src="{{ student.photo_url or '/static/uploads/profiles/default_avatar.svg' }}" alt="{{ student.name }}" style="width: 80px; height: 80px; border-radius: 50%; border: 3px solid #fef08a; background: white; object-fit: cover;">
@@ -14,8 +20,9 @@
         <p style="opacity: 0.9; font-size: 0.9rem;">고유 ID: <strong>{{ student.student_code }}</strong></p>
       </div>
     </div>
-    <div style="display: flex; gap: 0.6rem;">
-      <a href="/kiosk" class="btn btn-accent">🛒 매점 키오스크 이동</a>
+    <div style="display: flex; gap: 0.6rem; flex-wrap: wrap;">
+      <a href="/student/change_password" class="btn btn-outline" style="background: rgba(255,255,255,0.15); color: white; border-color: rgba(255,255,255,0.3);">🔐 비밀번호 변경</a>
+      <a href="/student/rules" class="btn btn-accent">🛍️ 매점 품목 열람</a>
       <a href="/auth/student/logout" class="btn btn-outline" style="background: rgba(255,255,255,0.15); color: white; border-color: rgba(255,255,255,0.3);">로그아웃</a>
     </div>
   </div>
