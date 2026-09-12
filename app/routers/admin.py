@@ -412,11 +412,13 @@ async def grant_talent_page(request: Request, db: Session = Depends(get_db)):
     students = db.query(Student).filter(Student.is_active == True).order_by(Student.department.asc(), Student.name.asc()).all()
     rules = db.query(TalentRule).filter(TalentRule.is_active == True).all()
     departments = [d.name for d in db.query(Department).filter(Department.is_active == True).order_by(Department.display_order.asc(), Department.id.asc()).all()]
+    earnings = db.query(TalentEarning).order_by(TalentEarning.created_at.desc(), TalentEarning.id.desc()).all()
     return templates.TemplateResponse("admin/talent_grant.html", {
         "request": request,
         "students": students,
         "rules": rules,
-        "departments": departments
+        "departments": departments,
+        "earnings": earnings
     })
 
 
@@ -453,6 +455,68 @@ async def grant_talent(
 
     db.commit()
     return RedirectResponse(url=f"/admin/talent/grant?msg=granted_multi&count={count}&points={points}", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/talent/earnings/{earning_id}/edit")
+async def edit_talent_earning(
+    earning_id: int,
+    points: int = Form(...),
+    reason: str = Form(...),
+    granted_by: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    """지급된 달란트 실적 수정 및 학생 잔여/누적 달란트 차액 정산"""
+    earning = db.query(TalentEarning).filter(TalentEarning.id == earning_id).first()
+    if not earning:
+        raise HTTPException(status_code=404, detail="실적 내역을 찾을 수 없습니다.")
+
+    student = earning.student
+    diff = points - earning.points
+
+    # 점수 삭감 시 학생의 현재 보유 달란트 잔고 부족 방어
+    if diff < 0 and (student.current_talent + diff < 0):
+        req_pts = abs(diff)
+        sname_encoded = urllib.parse.quote(student.name)
+        return RedirectResponse(
+            url=f"/admin/talent/grant?error=insufficient_talent&req={req_pts}&cur={student.current_talent}&sname={sname_encoded}",
+            status_code=status.HTTP_303_SEE_OTHER
+        )
+
+    student.current_talent += diff
+    student.total_earned += diff
+    earning.points = points
+    earning.reason = reason.strip()
+    earning.granted_by = granted_by.strip()
+
+    db.commit()
+    return RedirectResponse(url="/admin/talent/grant?msg=earning_updated", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/talent/earnings/{earning_id}/delete")
+async def delete_talent_earning(
+    earning_id: int,
+    db: Session = Depends(get_db)
+):
+    """지급된 달란트 실적 취소(삭제) 및 학생 잔여/누적 달란트 회수"""
+    earning = db.query(TalentEarning).filter(TalentEarning.id == earning_id).first()
+    if not earning:
+        raise HTTPException(status_code=404, detail="실적 내역을 찾을 수 없습니다.")
+
+    student = earning.student
+    # 회수할 달란트보다 현재 잔여 달란트가 부족한 경우 차단 (이미 매점 등에서 사용)
+    if student.current_talent < earning.points:
+        sname_encoded = urllib.parse.quote(student.name)
+        return RedirectResponse(
+            url=f"/admin/talent/grant?error=cannot_delete_insufficient&req={earning.points}&cur={student.current_talent}&sname={sname_encoded}",
+            status_code=status.HTTP_303_SEE_OTHER
+        )
+
+    student.current_talent -= earning.points
+    student.total_earned -= earning.points
+    db.delete(earning)
+    db.commit()
+
+    return RedirectResponse(url="/admin/talent/grant?msg=earning_deleted", status_code=status.HTTP_303_SEE_OTHER)
 
 
 

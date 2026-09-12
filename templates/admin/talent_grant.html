@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}달란트 실적 지급 - 율전중앙교회 달란트{% endblock %}
+{% block title %}달란트 실적 지급 및 내역 관리 - 율전중앙교회 달란트{% endblock %}
 
 {% block content %}
 <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.8rem;">
@@ -17,7 +17,59 @@
   <a href="/auth/admin/logout" class="btn btn-sm btn-danger" style="margin-left: auto;">로그아웃</a>
 </div>
 
-<div style="max-width: 650px; margin: 0 auto 2rem;">
+<!-- 알림 메시지 영역 -->
+<div style="max-width: 900px; margin: 0 auto 1rem;">
+  {% if request.query_params.get('csv_error') %}
+  <div class="alert alert-danger" style="margin-bottom: 1rem; background-color: #fee2e2; border-left: 4px solid #ef4444; color: #991b1b; padding: 1rem;">
+    <strong>⚠️ CSV 업로드 검증 오류:</strong> {{ request.query_params.get('csv_error') }}
+  </div>
+  {% endif %}
+
+  {% if request.query_params.get('msg') == 'csv_success' %}
+  <div class="alert alert-success" style="margin-bottom: 1rem;">
+    🎉 총 {{ request.query_params.get('count') }}건의 달란트 지급 실적이 CSV를 통해 일괄 반영되었습니다!
+  </div>
+  {% endif %}
+
+  {% if request.query_params.get('msg') == 'granted_multi' %}
+  <div class="alert alert-success" style="margin-bottom: 1rem;">
+    🎉 총 {{ request.query_params.get('count') }}명의 학생에게 각각 {{ request.query_params.get('points') }}달란트가 성공적으로 일괄 지급되었습니다!
+  </div>
+  {% endif %}
+
+  {% if request.query_params.get('msg') == 'granted' %}
+  <div class="alert alert-success" style="margin-bottom: 1rem;">
+    🎉 달란트가 성공적으로 지급되었습니다! 학생 잔액에 즉시 반영되었습니다.
+  </div>
+  {% endif %}
+
+  {% if request.query_params.get('msg') == 'earning_updated' %}
+  <div class="alert alert-success" style="margin-bottom: 1rem;">
+    ✓ 달란트 실적 지급 내역이 성공적으로 수정되었으며, 학생의 잔여 및 누적 달란트가 차액만큼 정산 반영되었습니다.
+  </div>
+  {% endif %}
+
+  {% if request.query_params.get('msg') == 'earning_deleted' %}
+  <div class="alert alert-success" style="margin-bottom: 1rem;">
+    ✓ 달란트 실적 지급이 성공적으로 취소(삭제)되었으며, 학생의 잔여 및 누적 달란트에서 회수되었습니다.
+  </div>
+  {% endif %}
+
+  {% if request.query_params.get('error') == 'insufficient_talent' %}
+  <div class="alert alert-danger" style="margin-bottom: 1rem;">
+    ⚠️ <strong>수정 실패 (잔여 달란트 부족):</strong> {{ request.query_params.get('sname') }} 학생의 현재 잔액은 {{ request.query_params.get('cur') }}달란트입니다. 삭감할 차액({{ request.query_params.get('req') }}달란트)보다 부족하여 수정을 차단했습니다.
+  </div>
+  {% endif %}
+
+  {% if request.query_params.get('error') == 'cannot_delete_insufficient' %}
+  <div class="alert alert-danger" style="margin-bottom: 1rem;">
+    ⚠️ <strong>삭제 실패 (잔여 달란트 부족):</strong> {{ request.query_params.get('sname') }} 학생이 이미 매점에서 달란트를 사용하여 잔여 달란트({{ request.query_params.get('cur') }}달란트)가 회수할 달란트({{ request.query_params.get('req') }}달란트)보다 부족하므로 지급 내역을 삭제할 수 없습니다.
+  </div>
+  {% endif %}
+</div>
+
+<!-- 1. 상단: 학생 달란트 실적 지급 폼 카드 -->
+<div style="max-width: 750px; margin: 0 auto 2.5rem;">
   <div class="card" style="padding: 2.2rem 2rem;">
     <div style="text-align: center; margin-bottom: 1.5rem;">
       <div style="font-size: 2.5rem; margin-bottom: 0.4rem;">🪙</div>
@@ -35,30 +87,6 @@
         📤 CSV 일괄 실적 지급
       </button>
     </div>
-
-    {% if request.query_params.get('csv_error') %}
-    <div class="alert alert-danger" style="margin-bottom: 1.5rem; background-color: #fee2e2; border-left: 4px solid #ef4444; color: #991b1b; padding: 1rem;">
-      <strong>⚠️ CSV 업로드 검증 오류:</strong> {{ request.query_params.get('csv_error') }}
-    </div>
-    {% endif %}
-
-    {% if request.query_params.get('msg') == 'csv_success' %}
-    <div class="alert alert-success" style="margin-bottom: 1.5rem;">
-      🎉 총 {{ request.query_params.get('count') }}건의 달란트 지급 실적이 CSV를 통해 일괄 반영되었습니다!
-    </div>
-    {% endif %}
-
-    {% if request.query_params.get('msg') == 'granted_multi' %}
-    <div class="alert alert-success">
-      🎉 총 {{ request.query_params.get('count') }}명의 학생에게 각각 {{ request.query_params.get('points') }}달란트가 성공적으로 일괄 지급되었습니다!
-    </div>
-    {% endif %}
-
-    {% if request.query_params.get('msg') == 'granted' %}
-    <div class="alert alert-success">
-      🎉 달란트가 성공적으로 지급되었습니다! 학생 잔액에 즉시 반영되었습니다.
-    </div>
-    {% endif %}
 
     <form action="/admin/talent/grant" method="POST" onsubmit="return validateGrantForm()">
       <!-- 1단계: 소속 부서 선택 -->
@@ -98,7 +126,7 @@
           </div>
         </div>
 
-        <!-- 실시간 이름 검색 입력창 (신규 추가) -->
+        <!-- 실시간 이름 검색 입력창 -->
         <div style="position: relative; margin-bottom: 0.7rem;">
           <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #64748b; font-size: 1rem; pointer-events: none;">🔍</span>
           <input type="text" id="student_name_search" class="form-control" 
@@ -110,7 +138,7 @@
                   style="display: none; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: #e2e8f0; border: none; border-radius: 50%; width: 22px; height: 22px; color: #475569; font-size: 0.8rem; cursor: pointer; line-height: 22px; text-align: center; padding: 0;">✕</button>
         </div>
 
-        <!-- 선택된 학생 배지 태그 모음 (검색 중에도 선택된 학생 한눈에 확인 & 개별 취소) -->
+        <!-- 선택된 학생 배지 태그 모음 -->
         <div id="selected-tags-container" style="display: none; margin-bottom: 0.7rem; padding: 0.6rem 0.8rem; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px;">
           <div style="font-size: 0.8rem; font-weight: 700; color: #1e40af; margin-bottom: 0.35rem; display: flex; justify-content: space-between; align-items: center;">
             <span>📌 현재 선택된 지급 대상 학생 (<span id="selected-tags-count">0</span>명):</span>
@@ -172,6 +200,175 @@
   </div>
 </div>
 
+<!-- 2. 하단: 달란트 실적 지급 내역 및 관리 카드 (신규 추가) -->
+<div class="card" style="margin-bottom: 3rem;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; flex-wrap: wrap; gap: 0.8rem; border-bottom: 1px solid var(--border); padding-bottom: 0.8rem;">
+    <div>
+      <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: #1e3a8a; display: flex; align-items: center; gap: 0.5rem;">
+        <span>📜</span> 달란트 실적 지급 내역 및 관리
+      </h3>
+      <p style="margin: 0.2rem 0 0; font-size: 0.85rem; color: var(--text-muted);">
+        지급된 실적 내역을 실시간으로 검색하고, 잘못 지급된 경우 수정하거나 취소(삭제)할 수 있습니다.
+      </p>
+    </div>
+    <div style="display: flex; gap: 0.5rem; align-items: center;">
+      <span class="badge badge-primary" style="font-size: 0.85rem; font-weight: 700; padding: 0.4rem 0.7rem;">
+        총 <span id="earnings-total-count">{{ earnings|length }}</span>건 내역
+      </span>
+    </div>
+  </div>
+
+  <!-- 검색 및 부서 필터 바 -->
+  <div style="display: flex; gap: 0.8rem; flex-wrap: wrap; margin-bottom: 1rem;">
+    <div style="flex: 1; min-width: 240px; position: relative;">
+      <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #64748b; font-size: 1rem; pointer-events: none;">🔍</span>
+      <input type="text" id="earning_search_input" class="form-control" 
+             placeholder="실적 내역 검색 (학생 성명, 학번, 사유, 교사명)" 
+             oninput="filterEarningsTable()"
+             style="padding-left: 2.3rem; border: 1px solid var(--border); border-radius: 6px;">
+    </div>
+    <div style="width: 180px;">
+      <select id="earning_dept_filter" class="form-control" onchange="filterEarningsTable()" style="border: 1px solid var(--border); border-radius: 6px;">
+        <option value="ALL">전체 부서 필터</option>
+        {% if departments %}
+          {% for dept in departments %}
+          <option value="{{ dept }}">{{ dept }}</option>
+          {% endfor %}
+        {% else %}
+          <option value="유치부">유치부</option>
+          <option value="아동부">아동부</option>
+          <option value="청소년부">청소년부</option>
+          <option value="기타">기타/미지정</option>
+        {% endif %}
+      </select>
+    </div>
+  </div>
+
+  <!-- 실적 내역 테이블 -->
+  <div class="table-responsive">
+    <table class="styled-table" id="earnings-table">
+      <thead>
+        <tr>
+          <th style="width: 15%;">지급 일시(KST)</th>
+          <th style="width: 22%;">대상 학생</th>
+          <th style="width: 28%;">지급 사유</th>
+          <th style="width: 10%; text-align: right;">지급 달란트</th>
+          <th style="width: 12%;">지급 교사</th>
+          <th style="width: 13%; text-align: center;">관리</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in earnings %}
+        <tr class="earning-row" 
+            data-name="{{ e.student.name if e.student else '' }}" 
+            data-code="{{ e.student.student_code if e.student else '' }}" 
+            data-dept="{{ e.student.department if (e.student and e.student.department) else '기타' }}" 
+            data-reason="{{ e.reason }}" 
+            data-teacher="{{ e.granted_by }}">
+          <td style="font-size: 0.85rem; color: #64748b;">
+            {{ e.created_at.strftime('%Y-%m-%d %H:%M') if e.created_at else '-' }}
+          </td>
+          <td>
+            {% if e.student %}
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <img src="{{ e.student.photo_url or '/static/uploads/profiles/default_avatar.svg' }}" alt="{{ e.student.name }}" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border);">
+              <div>
+                <span style="font-weight: 700; color: #1e293b;">{{ e.student.name }}</span>
+                <span style="font-size: 0.78rem; color: #64748b; margin-left: 0.2rem;">({{ e.student.student_code }})</span>
+                <span class="badge" style="font-size: 0.7rem; background: #e0e7ff; color: #3730a3; padding: 0.1rem 0.4rem; border-radius: 4px; margin-left: 0.2rem;">
+                  {{ e.student.department or '미지정' }}
+                </span>
+              </div>
+            </div>
+            {% else %}
+            <span style="color: #94a3b8;">(탈퇴/삭제 학생)</span>
+            {% endif %}
+          </td>
+          <td style="font-weight: 600; color: #334155;">
+            {{ e.reason }}
+          </td>
+          <td style="text-align: right; font-weight: 800; color: #c2410c; font-size: 1rem;">
+            +{{ e.points }} 🪙
+          </td>
+          <td style="color: #475569; font-size: 0.9rem;">
+            👤 {{ e.granted_by }}
+          </td>
+          <td style="text-align: center;">
+            <div style="display: inline-flex; gap: 0.3rem;">
+              <button type="button" class="btn btn-sm btn-outline" 
+                      onclick="openEditEarningModal('{{ e.id }}', '{{ e.student.name if e.student else '' }}', '{{ e.student.student_code if e.student else '' }}', '{{ e.student.current_talent if e.student else 0 }}', '{{ e.points }}', '{{ e.reason|escape }}', '{{ e.granted_by|escape }}')"
+                      title="실적 수정" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                ✏️ 수정
+              </button>
+              <form action="/admin/talent/earnings/{{ e.id }}/delete" method="POST" style="display: inline;" onsubmit="return confirm('⚠️ [지급 취소 경고]\n{{ e.student.name if e.student else '학생' }} 학생에게 지급된 {{ e.points }}달란트 실적을 정말로 삭제하시겠습니까?\n\n※ 학생의 잔여 달란트 및 누적 달란트에서 {{ e.points }}달란트가 즉시 회수됩니다.');">
+                <button type="submit" class="btn btn-sm btn-danger" title="지급 취소(삭제)" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                  🗑️ 삭제
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr id="empty-table-row">
+          <td colspan="6" style="text-align: center; color: #94a3b8; padding: 2rem;">
+            등록된 달란트 실적 지급 내역이 없습니다.
+          </td>
+        </tr>
+        {% endfor %}
+        <tr id="no-search-results-row" style="display: none;">
+          <td colspan="6" style="text-align: center; color: #64748b; padding: 2rem; background: #f8fafc;">
+            🔍 일치하는 달란트 실적 내역이 없습니다.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- 달란트 실적 수정 모달 -->
+<div id="edit-earning-modal" class="modal-backdrop">
+  <div class="modal-content" style="max-width: 500px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.6rem;">
+      <h3 style="margin: 0; color: #1e3a8a; font-size: 1.2rem;">✏️ 달란트 실적 지급 내역 수정</h3>
+      <button type="button" onclick="closeEditEarningModal()" style="background: none; border: none; font-size: 1.3rem; color: #94a3b8; cursor: pointer;">✕</button>
+    </div>
+
+    <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 0.8rem 1rem; margin-bottom: 1.2rem; font-size: 0.88rem;">
+      <div style="font-weight: 700; color: #1e40af; margin-bottom: 0.2rem;">
+        👤 대상 학생: <span id="modal-student-name"></span> (<span id="modal-student-code"></span>)
+      </div>
+      <div style="color: #3b82f6;">
+        현재 보유 잔여 달란트: <strong><span id="modal-student-current-talent"></span>🪙</strong>
+      </div>
+      <small style="color: #64748b; display: block; margin-top: 0.3rem;">
+        ※ 달란트 점수를 수정하면 차액만큼 학생의 잔여 및 누적 달란트에 자동 정산 반영됩니다. (삭감 시 현재 잔액 부족 상태이면 차단됩니다)
+      </small>
+    </div>
+
+    <form id="edit-earning-form" method="POST">
+      <div class="form-group" style="margin-bottom: 1rem;">
+        <label class="form-label" for="edit-points" style="font-weight: 700;">지급 달란트 점수 <span style="color: red;">*</span></label>
+        <input type="number" id="edit-points" name="points" class="form-control" min="1" max="500" required>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 1rem;">
+        <label class="form-label" for="edit-reason" style="font-weight: 700;">지급 상세 사유 <span style="color: red;">*</span></label>
+        <input type="text" id="edit-reason" name="reason" class="form-control" required>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 1.2rem;">
+        <label class="form-label" for="edit-granted-by" style="font-weight: 700;">지급 교사 성명 <span style="color: red;">*</span></label>
+        <input type="text" id="edit-granted-by" name="granted_by" class="form-control" required>
+      </div>
+
+      <div style="display: flex; gap: 0.5rem;">
+        <button type="button" class="btn btn-outline" style="flex: 1;" onclick="closeEditEarningModal()">취소</button>
+        <button type="submit" class="btn btn-primary" style="flex: 2; font-weight: 700;">수정 및 잔액 갱신 적용 ➔</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- 달란트 CSV 일괄 지급 모달 -->
 <div id="talent-csv-modal" class="modal-backdrop">
   <div class="modal-content">
@@ -215,7 +412,7 @@
     }
   }
 
-  // 1단계 부서 선택 또는 2단계 이름 검색 시 실행되는 통합 필터 함수
+  // 1단계 부서 선택 또는 2단계 이름 검색 시 실행되는 통합 필터 함수 (상단 폼)
   function onSearchOrFilterChange() {
     const dept = document.getElementById('dept_filter').value;
     const search = document.getElementById('student_name_search').value.trim().toLowerCase();
@@ -327,6 +524,57 @@
       }
     });
     updateSelectedState();
+  }
+
+  // --- 하단 실적 내역 검색 및 부서 필터 함수 ---
+  function filterEarningsTable() {
+    const search = document.getElementById('earning_search_input').value.trim().toLowerCase();
+    const dept = document.getElementById('earning_dept_filter').value;
+    const rows = document.querySelectorAll('.earning-row');
+    let visibleCount = 0;
+
+    rows.forEach(row => {
+      const name = (row.getAttribute('data-name') || '').toLowerCase();
+      const code = (row.getAttribute('data-code') || '').toLowerCase();
+      const rowDept = row.getAttribute('data-dept') || '기타';
+      const reason = (row.getAttribute('data-reason') || '').toLowerCase();
+      const teacher = (row.getAttribute('data-teacher') || '').toLowerCase();
+
+      const deptMatch = (dept === 'ALL' || rowDept === dept);
+      const searchMatch = (!search || name.includes(search) || code.includes(search) || reason.includes(search) || teacher.includes(search));
+
+      if (deptMatch && searchMatch) {
+        row.style.display = '';
+        visibleCount++;
+      } else {
+        row.style.display = 'none';
+      }
+    });
+
+    const noResultsRow = document.getElementById('no-search-results-row');
+    if (noResultsRow) {
+      noResultsRow.style.display = (visibleCount === 0 && rows.length > 0) ? '' : 'none';
+    }
+    const countBadge = document.getElementById('earnings-total-count');
+    if (countBadge) {
+      countBadge.textContent = visibleCount;
+    }
+  }
+
+  // --- 실적 수정 모달 제어 함수 ---
+  function openEditEarningModal(id, sname, scode, currentTalent, points, reason, grantedBy) {
+    document.getElementById('modal-student-name').textContent = sname;
+    document.getElementById('modal-student-code').textContent = scode;
+    document.getElementById('modal-student-current-talent').textContent = currentTalent;
+    document.getElementById('edit-points').value = points;
+    document.getElementById('edit-reason').value = reason;
+    document.getElementById('edit-granted-by').value = grantedBy;
+    document.getElementById('edit-earning-form').action = '/admin/talent/earnings/' + id + '/edit';
+    document.getElementById('edit-earning-modal').classList.add('show');
+  }
+
+  function closeEditEarningModal() {
+    document.getElementById('edit-earning-modal').classList.remove('show');
   }
 
   function escapeHtml(text) {
