@@ -15,7 +15,7 @@ from app.models import (
     Department, RuleCategory, ItemCategory, OrderAdjustmentLog, SystemConfig, get_system_config, set_system_config,
     TalentTalk
 )
-from app.config import ADMIN_PW
+from app.config import ADMIN_PW, MASTER_PW
 from app.timezone import get_kst_now
 from app.image_utils import bytes_to_data_url
 
@@ -1214,12 +1214,22 @@ async def annual_reset_page(request: Request, db: Session = Depends(get_db)):
     active_count = db.query(Student).filter(Student.current_talent > 0).count()
     total_talent = db.query(func.sum(Student.current_talent)).scalar() or 0
 
+    # 테스트 데이터(실적/주문/톡톡) 현황 집계
+    earnings_count = db.query(TalentEarning).count()
+    orders_count = db.query(Order).count()
+    adjustments_count = db.query(OrderAdjustmentLog).count()
+    talks_count = db.query(TalentTalk).count()
+
     return templates.TemplateResponse("admin/annual_reset.html", {
         "request": request,
         "resets": resets,
         "current_year": current_year,
         "active_count": active_count,
-        "total_talent": total_talent
+        "total_talent": total_talent,
+        "earnings_count": earnings_count,
+        "orders_count": orders_count,
+        "adjustments_count": adjustments_count,
+        "talks_count": talks_count
     })
 
 
@@ -1264,6 +1274,56 @@ async def execute_annual_reset(
     db.commit()
 
     return RedirectResponse(url="/admin/annual_reset?msg=reset_completed", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/reset_transactions")
+async def execute_reset_transactions(
+    master_pw: str = Form(...),
+    delete_talks: Optional[str] = Form(None),
+    delete_snapshots: Optional[str] = Form(None),
+    db: Session = Depends(get_db)
+):
+    """
+    [방안 A] 실운영 개시 전 테스트 데이터 전체 초기화:
+    - Master_PW(MASTER_PW) 인증 필수
+    - 달란트 적립 내역 (TalentEarning) 전체 삭제
+    - 매점 주문 상세 (OrderItem), 주문 (Order), 반품/수정 감사로그 (OrderAdjustmentLog) 전체 삭제
+    - 전교생(Student)의 현재 잔여 달란트, 누적 적립, 누적 사용 달란트 0으로 일괄 초기화
+    - 옵션: 달란트 톡톡 (TalentTalk) 삭제
+    - 옵션: 과거 연간 초기화 스냅샷 (AnnualSnapshot, AnnualReset) 삭제
+    - 학생 계정, 마스터 기준, 매점 상품 정보는 안전하게 영구 보존
+    """
+    if master_pw.strip() != MASTER_PW:
+        return RedirectResponse(url="/admin/annual_reset?error=invalid_master_password", status_code=status.HTTP_303_SEE_OTHER)
+
+    try:
+        # 1. 외래키 종속 테이블 순차 삭제
+        db.query(OrderAdjustmentLog).delete()
+        db.query(OrderItem).delete()
+        db.query(Order).delete()
+        db.query(TalentEarning).delete()
+
+        # 2. 전교생 달란트 잔액 및 누적 집계 0으로 리셋
+        db.query(Student).update({
+            Student.current_talent: 0,
+            Student.total_earned: 0,
+            Student.total_spent: 0
+        })
+
+        # 3. 옵션 사항: 달란트 톡톡 삭제
+        if delete_talks == "on":
+            db.query(TalentTalk).delete()
+
+        # 4. 옵션 사항: 과거 연간 스냅샷 삭제
+        if delete_snapshots == "on":
+            db.query(AnnualSnapshot).delete()
+            db.query(AnnualReset).delete()
+
+        db.commit()
+        return RedirectResponse(url="/admin/annual_reset?msg=transactions_reset_completed", status_code=status.HTTP_303_SEE_OTHER)
+    except Exception as e:
+        db.rollback()
+        return RedirectResponse(url=f"/admin/annual_reset?error=reset_failed", status_code=status.HTTP_303_SEE_OTHER)
 
 
 # -------------------------------------------------------------
