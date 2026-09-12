@@ -211,36 +211,84 @@
         지급된 실적 내역을 실시간으로 검색하고, 잘못 지급된 경우 수정하거나 취소(삭제)할 수 있습니다.
       </p>
     </div>
-    <div style="display: flex; gap: 0.5rem; align-items: center;">
-      <span class="badge badge-primary" style="font-size: 0.85rem; font-weight: 700; padding: 0.4rem 0.7rem;">
-        총 <span id="earnings-total-count">{{ earnings|length }}</span>건 내역
+  <!-- 5대 복합 검색 및 필터 패널 (소속 부서 / 대상 학생 / 지급 기준 / 지급 교사 성명 / 지급일 기준) -->
+  <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 1.1rem 1.2rem; margin-bottom: 1.2rem;">
+    <div style="font-size: 0.88rem; font-weight: 800; color: #1e3a8a; margin-bottom: 0.8rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+      <span style="display: flex; align-items: center; gap: 0.4rem;">
+        <span>🔍</span> 달란트 지급 실적 다차원 상세 조회 필터 (5대 기준)
       </span>
+      <div style="display: flex; gap: 0.4rem; align-items: center;">
+        <span class="badge badge-primary" style="font-size: 0.82rem; font-weight: 700; padding: 0.35rem 0.65rem;">
+          조회 결과: <span id="earnings-filtered-count">{{ earnings|length }}</span>건 (<span id="earnings-filtered-points">0</span>🪙)
+        </span>
+        <button type="button" class="btn btn-sm btn-outline" onclick="resetEarningsFilters()" style="padding: 0.25rem 0.6rem; font-size: 0.78rem; background: white;">
+          🔄 필터 초기화
+        </button>
+      </div>
     </div>
-  </div>
 
-  <!-- 검색 및 부서 필터 바 -->
-  <div style="display: flex; gap: 0.8rem; flex-wrap: wrap; margin-bottom: 1rem;">
-    <div style="flex: 1; min-width: 240px; position: relative;">
-      <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #64748b; font-size: 1rem; pointer-events: none;">🔍</span>
-      <input type="text" id="earning_search_input" class="form-control" 
-             placeholder="실적 내역 검색 (학생 성명, 학번, 사유, 교사명)" 
-             oninput="filterEarningsTable()"
-             style="padding-left: 2.3rem; border: 1px solid var(--border); border-radius: 6px;">
-    </div>
-    <div style="width: 180px;">
-      <select id="earning_dept_filter" class="form-control" onchange="filterEarningsTable()" style="border: 1px solid var(--border); border-radius: 6px;">
-        <option value="ALL">전체 부서 필터</option>
-        {% if departments %}
-          {% for dept in departments %}
-          <option value="{{ dept }}">{{ dept }}</option>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.8rem; align-items: end;">
+      <!-- 1. 소속 부서 필터 -->
+      <div>
+        <label class="form-label" for="filter-dept" style="font-size: 0.8rem; font-weight: 700; color: #475569; margin-bottom: 0.3rem;">
+          🏢 1. 소속 부서
+        </label>
+        <select id="filter-dept" class="form-control" onchange="filterEarningsTable()" style="font-size: 0.88rem; padding: 0.45rem 0.6rem;">
+          <option value="ALL">전체 부서</option>
+          {% if departments %}
+            {% for dept in departments %}
+            <option value="{{ dept }}">{{ dept }}</option>
+            {% endfor %}
+          {% else %}
+            <option value="유치부">유치부</option>
+            <option value="아동부">아동부</option>
+            <option value="청소년부">청소년부</option>
+            <option value="기타">기타/미지정</option>
+          {% endif %}
+        </select>
+      </div>
+
+      <!-- 2. 대상 학생 검색 -->
+      <div>
+        <label class="form-label" for="filter-student" style="font-size: 0.8rem; font-weight: 700; color: #475569; margin-bottom: 0.3rem;">
+          👤 2. 대상 학생 (이름/학번)
+        </label>
+        <input type="text" id="filter-student" class="form-control" placeholder="학생 성명 또는 학번" oninput="filterEarningsTable()" style="font-size: 0.88rem; padding: 0.45rem 0.6rem;">
+      </div>
+
+      <!-- 3. 지급 기준 필터 -->
+      <div>
+        <label class="form-label" for="filter-rule" style="font-size: 0.8rem; font-weight: 700; color: #475569; margin-bottom: 0.3rem;">
+          📜 3. 지급 기준
+        </label>
+        <select id="filter-rule" class="form-control" onchange="filterEarningsTable()" style="font-size: 0.88rem; padding: 0.45rem 0.6rem;">
+          <option value="ALL">전체 기준</option>
+          {% for r in rules %}
+          <option value="{{ r.title }}">{{ r.title }} (+{{ r.points }}🪙)</option>
           {% endfor %}
-        {% else %}
-          <option value="유치부">유치부</option>
-          <option value="아동부">아동부</option>
-          <option value="청소년부">청소년부</option>
-          <option value="기타">기타/미지정</option>
-        {% endif %}
-      </select>
+        </select>
+      </div>
+
+      <!-- 4. 지급 교사 성명 검색 -->
+      <div>
+        <label class="form-label" for="filter-teacher" style="font-size: 0.8rem; font-weight: 700; color: #475569; margin-bottom: 0.3rem;">
+          🧑‍🏫 4. 지급 교사 성명
+        </label>
+        <input type="text" id="filter-teacher" class="form-control" placeholder="교사 이름 검색" oninput="filterEarningsTable()" style="font-size: 0.88rem; padding: 0.45rem 0.6rem;">
+      </div>
+
+      <!-- 5. 지급일 기준 (기간/일자) -->
+      <div style="min-width: 250px;">
+        <label class="form-label" style="font-size: 0.8rem; font-weight: 700; color: #475569; margin-bottom: 0.3rem;">
+          📅 5. 지급일 기준 (기간 선택)
+        </label>
+        <div style="display: flex; align-items: center; gap: 0.35rem;">
+          <input type="date" id="filter-date-start" class="form-control" onchange="filterEarningsTable()" style="font-size: 0.82rem; padding: 0.4rem 0.45rem;">
+          <span style="color: #64748b; font-weight: bold;">~</span>
+          <input type="date" id="filter-date-end" class="form-control" onchange="filterEarningsTable()" style="font-size: 0.82rem; padding: 0.4rem 0.45rem;">
+          <button type="button" class="btn btn-sm btn-outline" onclick="setDateFilterToday()" style="white-space: nowrap; font-size: 0.75rem; padding: 0.35rem 0.5rem; background: white;">오늘</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -251,7 +299,7 @@
         <tr>
           <th style="width: 15%;">지급 일시(KST)</th>
           <th style="width: 22%;">대상 학생</th>
-          <th style="width: 28%;">지급 사유</th>
+          <th style="width: 28%;">지급 사유(기준)</th>
           <th style="width: 10%; text-align: right;">지급 달란트</th>
           <th style="width: 12%;">지급 교사</th>
           <th style="width: 13%; text-align: center;">관리</th>
@@ -263,8 +311,11 @@
             data-name="{{ e.student.name if e.student else '' }}" 
             data-code="{{ e.student.student_code if e.student else '' }}" 
             data-dept="{{ e.student.department if (e.student and e.student.department) else '기타' }}" 
+            data-rule="{{ e.rule.title if e.rule else e.reason }}" 
             data-reason="{{ e.reason }}" 
-            data-teacher="{{ e.granted_by }}">
+            data-points="{{ e.points }}" 
+            data-teacher="{{ e.granted_by }}" 
+            data-date="{{ e.created_at.strftime('%Y-%m-%d') if e.created_at else '' }}">
           <td style="font-size: 0.85rem; color: #64748b;">
             {{ e.created_at.strftime('%Y-%m-%d %H:%M') if e.created_at else '-' }}
           </td>
@@ -526,26 +577,46 @@
     updateSelectedState();
   }
 
-  // --- 하단 실적 내역 검색 및 부서 필터 함수 ---
+  // --- 하단 실적 내역 5대 다차원 검색 및 필터 함수 ---
   function filterEarningsTable() {
-    const search = document.getElementById('earning_search_input').value.trim().toLowerCase();
-    const dept = document.getElementById('earning_dept_filter').value;
+    const dept = document.getElementById('filter-dept') ? document.getElementById('filter-dept').value : 'ALL';
+    const student = document.getElementById('filter-student') ? document.getElementById('filter-student').value.trim().toLowerCase() : '';
+    const rule = document.getElementById('filter-rule') ? document.getElementById('filter-rule').value : 'ALL';
+    const teacher = document.getElementById('filter-teacher') ? document.getElementById('filter-teacher').value.trim().toLowerCase() : '';
+    const startDate = document.getElementById('filter-date-start') ? document.getElementById('filter-date-start').value : '';
+    const endDate = document.getElementById('filter-date-end') ? document.getElementById('filter-date-end').value : '';
+
     const rows = document.querySelectorAll('.earning-row');
     let visibleCount = 0;
+    let visiblePoints = 0;
 
     rows.forEach(row => {
       const name = (row.getAttribute('data-name') || '').toLowerCase();
       const code = (row.getAttribute('data-code') || '').toLowerCase();
       const rowDept = row.getAttribute('data-dept') || '기타';
+      const rowRule = row.getAttribute('data-rule') || '';
       const reason = (row.getAttribute('data-reason') || '').toLowerCase();
-      const teacher = (row.getAttribute('data-teacher') || '').toLowerCase();
+      const rowTeacher = (row.getAttribute('data-teacher') || '').toLowerCase();
+      const rowDate = row.getAttribute('data-date') || '';
+      const rowPts = parseInt(row.getAttribute('data-points') || '0', 10);
 
+      // 1. 소속 부서 필터
       const deptMatch = (dept === 'ALL' || rowDept === dept);
-      const searchMatch = (!search || name.includes(search) || code.includes(search) || reason.includes(search) || teacher.includes(search));
+      // 2. 대상 학생 검색 (이름 또는 학번)
+      const studentMatch = (!student || name.includes(student) || code.includes(student));
+      // 3. 지급 기준 필터
+      const ruleMatch = (rule === 'ALL' || rowRule === rule || reason.includes(rule.toLowerCase()));
+      // 4. 지급 교사 성명 검색
+      const teacherMatch = (!teacher || rowTeacher.includes(teacher));
+      // 5. 지급일 기준 필터 (시작일 ~ 종료일)
+      let dateMatch = true;
+      if (startDate && rowDate && rowDate < startDate) dateMatch = false;
+      if (endDate && rowDate && rowDate > endDate) dateMatch = false;
 
-      if (deptMatch && searchMatch) {
+      if (deptMatch && studentMatch && ruleMatch && teacherMatch && dateMatch) {
         row.style.display = '';
         visibleCount++;
+        visiblePoints += rowPts;
       } else {
         row.style.display = 'none';
       }
@@ -555,11 +626,37 @@
     if (noResultsRow) {
       noResultsRow.style.display = (visibleCount === 0 && rows.length > 0) ? '' : 'none';
     }
-    const countBadge = document.getElementById('earnings-total-count');
+    const countBadge = document.getElementById('earnings-filtered-count');
     if (countBadge) {
       countBadge.textContent = visibleCount;
     }
+    const ptsBadge = document.getElementById('earnings-filtered-points');
+    if (ptsBadge) {
+      ptsBadge.textContent = visiblePoints.toLocaleString();
+    }
   }
+
+  function resetEarningsFilters() {
+    if (document.getElementById('filter-dept')) document.getElementById('filter-dept').value = 'ALL';
+    if (document.getElementById('filter-student')) document.getElementById('filter-student').value = '';
+    if (document.getElementById('filter-rule')) document.getElementById('filter-rule').value = 'ALL';
+    if (document.getElementById('filter-teacher')) document.getElementById('filter-teacher').value = '';
+    if (document.getElementById('filter-date-start')) document.getElementById('filter-date-start').value = '';
+    if (document.getElementById('filter-date-end')) document.getElementById('filter-date-end').value = '';
+    filterEarningsTable();
+  }
+
+  function setDateFilterToday() {
+    const today = new Date().toISOString().split('T')[0];
+    if (document.getElementById('filter-date-start')) document.getElementById('filter-date-start').value = today;
+    if (document.getElementById('filter-date-end')) document.getElementById('filter-date-end').value = today;
+    filterEarningsTable();
+  }
+
+  // 페이지 로드 시 초기 계산 수행
+  document.addEventListener('DOMContentLoaded', function() {
+    filterEarningsTable();
+  });
 
   // --- 실적 수정 모달 제어 함수 ---
   function openEditEarningModal(id, sname, scode, currentTalent, points, reason, grantedBy) {
