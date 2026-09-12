@@ -1005,12 +1005,20 @@ async def modify_order(
     student = order.student
     form_data = await request.form()
     action = form_data.get("action")
-    admin_name = form_data.get("admin_name", "").strip() or "관리자"
+    admin_name = form_data.get("admin_name", "").strip()
+
+    # 1. 처리 담당자 성명 필수값 엄격 검증
+    if not admin_name:
+        err_msg = urllib.parse.quote("수정/반품 처리를 진행한 담당자 성명을 반드시 입력해야 합니다.")
+        return RedirectResponse(url=f"/admin/orders?error={err_msg}&student_id={student.id}", status_code=status.HTTP_303_SEE_OTHER)
 
     try:
         # 기존 결제 상태 및 품목 요약 사전 백업
         old_items_summary = ", ".join([f"{it.item_name} × {it.quantity}개" for it in order.items])
         prev_total = order.total_points
+        # 수정 전 학생 순수 보유 달란트 및 이 주문 취소 시 최대 가용 달란트
+        student_current = student.current_talent
+        max_available_talent = student_current + prev_total
 
         # 1. 기존 사용 달란트 및 재고 전액 원상복구 (Rollback)
         student.current_talent += order.total_points
@@ -1085,7 +1093,8 @@ async def modify_order(
 
             if not items_parsed:
                 db.rollback()
-                return RedirectResponse(url=f"/admin/orders?error=no_items&student_id={student.id}", status_code=status.HTTP_303_SEE_OTHER)
+                err_msg = urllib.parse.quote("주문 품목이 최소 1개 이상 존재해야 합니다. (전체 취소는 '반품/환불' 기능을 이용해 주세요)")
+                return RedirectResponse(url=f"/admin/orders?error={err_msg}&student_id={student.id}", status_code=status.HTTP_303_SEE_OTHER)
 
             # 품목 객체 매핑 및 재고/가격 검증
             new_total = 0
@@ -1105,8 +1114,9 @@ async def modify_order(
                 if item:
                     if item.stock < qty:
                         db.rollback()
+                        err_msg = urllib.parse.quote(f"'{item.name}' 상품의 매점 재고가 부족합니다. (현재 재고: {item.stock}개, 요청 수량: {qty}개)")
                         return RedirectResponse(
-                            url=f"/admin/orders?error=stock_shortage&item_name={urllib.parse.quote(item.name)}&student_id={student.id}",
+                            url=f"/admin/orders?error={err_msg}&student_id={student.id}",
                             status_code=status.HTTP_303_SEE_OTHER
                         )
                     unit_cost = item.price
@@ -1122,10 +1132,16 @@ async def modify_order(
                 new_total += subtotal
                 items_to_process.append((item, actual_id, actual_name, unit_cost, qty, subtotal))
 
-            # 학생 잔여 달란트 확인 (원상복구된 잔액 기준)
+            # 2. 학생 잔여 달란트 정밀 검증 (수량 증가로 인해 잔고가 부족한 경우 원천 차단)
             if student.current_talent < new_total:
                 db.rollback()
-                return RedirectResponse(url=f"/admin/orders?error=insufficient_talent&student_id={student.id}", status_code=status.HTTP_303_SEE_OTHER)
+                shortage = new_total - max_available_talent
+                needed_diff = new_total - prev_total
+                err_msg = urllib.parse.quote(
+                    f"학생({student.name})의 달란트 잔고가 부족하여 수량을 증가시킬 수 없습니다. "
+                    f"(수정 전 보유 잔고: {student_current}달란트, 추가 필요: {needed_diff}달란트 / {shortage}달란트 부족)"
+                )
+                return RedirectResponse(url=f"/admin/orders?error={err_msg}&student_id={student.id}", status_code=status.HTTP_303_SEE_OTHER)
 
             # 새 차감 적용
             student.current_talent -= new_total

@@ -160,14 +160,14 @@
           <td style="text-align: center;">
             {% if o.status == 'COMPLETED' %}
             <div style="display: flex; gap: 0.4rem; justify-content: center;">
-              <button type="button" class="btn btn-sm btn-outline" onclick='openModifyModal({{ o.id }}, {{ o.order_number | tojson }}, {{ o.student.name | tojson }}, {{ o.total_points }}, [
+              <button type="button" class="btn btn-sm btn-outline" onclick='openModifyModal({{ o.id }}, {{ o.order_number | tojson }}, {{ o.student.name | tojson }}, {{ o.student.student_code | tojson }}, {{ o.student.current_talent }}, {{ o.total_points }}, [
                 {% for it in o.items %}
                 { itemId: {{ it.item_id or 0 }}, itemName: {{ it.item_name | tojson }}, unitPrice: {{ it.unit_price }}, quantity: {{ it.quantity }} }{% if not loop.last %},{% endif %}
                 {% endfor %}
               ])'>
                 ✏️ 수정
               </button>
-              <button type="button" class="btn btn-sm btn-danger" onclick='openRefundModal({{ o.id }}, {{ o.order_number | tojson }}, {{ o.student.name | tojson }}, {{ o.total_points }})'>
+              <button type="button" class="btn btn-sm btn-danger" onclick='openRefundModal({{ o.id }}, {{ o.order_number | tojson }}, {{ o.student.name | tojson }}, {{ o.student.student_code | tojson }}, {{ o.student.current_talent }}, {{ o.total_points }})'>
                 반품/환불
               </button>
             </div>
@@ -278,28 +278,45 @@
       <h3 style="margin: 0; color: #1e3a8a; font-size: 1.35rem;">🛍️ 구매 내역 품목/수량 변경</h3>
       <button type="button" onclick="closeModifyModal()" style="background: none; border: none; font-size: 1.3rem; cursor: pointer; color: #64748b;">✕</button>
     </div>
-    <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1.2rem;" id="modify-desc">
+    <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1rem;" id="modify-desc">
       기존 구매 내역을 원상복구(환불)한 후, 선택한 품목 및 수량으로 재결제 처리합니다.
     </p>
 
-    <form id="modify-form" method="POST">
+    <!-- 대상 학생 및 달란트 잔고 확인 안내 박스 -->
+    <div style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 0.8rem 1rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.8rem;">
+      <div>
+        <div style="font-size: 0.95rem; font-weight: 700; color: #0f172a;">
+          👤 대상 학생: <span id="modal-student-info" style="color: #2563eb;">-</span>
+        </div>
+        <div style="font-size: 0.82rem; color: #64748b; margin-top: 2px;">
+          현재 보유 잔고: <strong id="modal-student-current-talent" style="color: #059669;">0</strong> 달란트 | 
+          기존 결제: <strong id="modal-student-order-talent" style="color: #dc2626;">0</strong> 달란트
+        </div>
+      </div>
+      <div style="background: white; padding: 0.4rem 0.8rem; border-radius: 6px; border: 1px solid #e2e8f0; text-align: right;">
+        <span style="font-size: 0.78rem; color: #64748b; display: block;">수정 시 최대 가용 달란트</span>
+        <strong id="modal-max-avail-talent" style="color: #2563eb; font-size: 1.05rem;">0 달란트</strong>
+      </div>
+    </div>
+
+    <form id="modify-form" method="POST" onsubmit="return validateModifyForm(event)">
       <input type="hidden" name="action" value="update">
 
-      <!-- 처리 담당자 성명 입력 (누가 수정했는지 파악) -->
-      <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 0.8rem 1rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
-        <label class="form-label" for="modify-admin-name" style="margin: 0; color: #1e40af; font-weight: 700; white-space: nowrap;">
-          👤 수정 처리 담당자 성명 <span style="color: red;">*</span>
+      <!-- 1. 처리 담당자 성명 입력 (누가 수정했는지 필수 파악) -->
+      <div style="background: #eff6ff; border: 1px solid #93c5fd; border-radius: 8px; padding: 0.8rem 1rem; margin-bottom: 1rem;">
+        <label class="form-label" for="modify-admin-name" style="margin-bottom: 0.3rem; color: #1e40af; font-weight: 800; display: flex; align-items: center; gap: 4px;">
+          👤 수정 처리 담당자 성명 <span style="color: #dc2626; font-size: 1rem;">*</span>
         </label>
-        <input type="text" id="modify-admin-name" name="admin_name" class="form-control" placeholder="예: 김도현 교사, 박선생님 (필수)" style="flex: 1; min-width: 200px; font-weight: 600;" required>
-        <small style="color: #64748b; font-size: 0.78rem; width: 100%;">
-          ※ 관리자가 여러 명인 환경에서 책임 소재 및 감사 이력 파악을 위해 담당자 이름을 입력합니다.
+        <input type="text" id="modify-admin-name" name="admin_name" class="form-control" placeholder="예: 김도현 교사, 박선생님 (필수 입력)" style="font-weight: 600; font-size: 0.95rem;" required>
+        <small style="color: #475569; font-size: 0.78rem; display: block; margin-top: 0.25rem;">
+          ※ 관리자가 여러 명인 환경에서 책임 소재 및 감사 이력 파악을 위해 담당자 성명을 반드시 입력해야 합니다.
         </small>
       </div>
 
-      <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin-bottom: 1.2rem;">
+      <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
           <strong style="font-size: 0.95rem; color: #1e293b;">주문 품목 목록 (수량 조정 및 삭제)</strong>
-          <span style="font-size: 0.82rem; color: #64748b;">수량을 조정하거나 삭제하여 주문 내역을 변경할 수 있습니다.</span>
+          <span style="font-size: 0.82rem; color: #64748b;">수량을 조정하거나 품목을 추가/삭제할 수 있습니다.</span>
         </div>
 
         <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;" id="modify-items-table">
@@ -319,7 +336,7 @@
       </div>
 
       <!-- 품목 추가 영역 -->
-      <div style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 1.2rem; background: #fff; padding: 0.8rem; border: 1px dashed #cbd5e1; border-radius: 8px;">
+      <div style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 1rem; background: #fff; padding: 0.8rem; border: 1px dashed #cbd5e1; border-radius: 8px;">
         <select id="add-item-select" class="form-control" style="flex: 1; font-size: 0.9rem;">
           <option value="">-- 추가할 품목 선택 --</option>
           {% for item in items %}
@@ -333,8 +350,14 @@
         </button>
       </div>
 
+      <!-- 실시간 잔고 부족 경고 배너 -->
+      <div id="modify-balance-alert" style="display: none; background: #fee2e2; border: 1px solid #f87171; border-radius: 8px; padding: 0.8rem 1rem; margin-bottom: 1rem; color: #991b1b; font-size: 0.88rem; font-weight: 600;">
+        ⚠️ 학생의 보유 달란트 잔고가 부족하여 수량을 증가시킬 수 없습니다!
+        <div id="modify-balance-detail" style="font-size: 0.82rem; font-weight: normal; margin-top: 4px; color: #b91c1c;"></div>
+      </div>
+
       <!-- 최종 계산 요약 -->
-      <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.9rem 1.2rem; background: #eff6ff; border-radius: 8px; border: 1px solid #bfdbfe; margin-bottom: 1.2rem; flex-wrap: wrap; gap: 0.5rem;">
+      <div id="modify-summary-box" style="display: flex; justify-content: space-between; align-items: center; padding: 0.9rem 1.2rem; background: #eff6ff; border-radius: 8px; border: 1px solid #bfdbfe; margin-bottom: 1.2rem; flex-wrap: wrap; gap: 0.5rem;">
         <div>
           <span style="font-size: 0.85rem; color: #1e40af;">기존 결제: <strong id="modal-orig-total">0</strong> 달란트</span>
           <span style="margin: 0 0.5rem; color: #93c5fd;">|</span>
@@ -347,13 +370,13 @@
 
       <div style="display: flex; gap: 0.5rem;">
         <button type="button" class="btn btn-outline" style="flex: 1;" onclick="closeModifyModal()">취소</button>
-        <button type="submit" class="btn btn-primary" style="flex: 2; font-weight: 700;">수정 및 갱신 적용</button>
+        <button type="submit" id="modify-submit-btn" class="btn btn-primary" style="flex: 2; font-weight: 700;">수정 및 갱신 적용</button>
       </div>
     </form>
   </div>
 </div>
 
-<!-- 반품/환불 처리 모달 (담당자 성명 필수 입력) -->
+<!-- 반품/환불 처리 모달 (팝업창에서 담당자 성명 필수 입력) -->
 <div id="refund-modal" class="modal-backdrop">
   <div class="modal-content" style="max-width: 480px; width: 95%;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
@@ -364,25 +387,27 @@
       주문을 취소하고 학생에게 결제 달란트를 즉시 전액 복구합니다.
     </p>
 
-    <form id="refund-form" method="POST">
+    <form id="refund-form" method="POST" onsubmit="return validateRefundForm(event)">
       <input type="hidden" name="action" value="refund">
 
       <div style="background: #fee2e2; border: 1px solid #fca5a5; border-radius: 8px; padding: 1rem; margin-bottom: 1.2rem;">
-        <div style="font-size: 0.9rem; color: #991b1b; line-height: 1.5;">
+        <div style="font-size: 0.9rem; color: #991b1b; line-height: 1.6;">
           • 주문번호: <strong id="refund-order-number"></strong><br>
           • 대상 학생: <strong id="refund-student-name"></strong><br>
+          • 현재 보유 달란트: <strong id="refund-current-talent"></strong> 달란트<br>
           • 환불 복구 달란트: <strong id="refund-total-points" style="font-size: 1.1rem; color: #dc2626;"></strong> 달란트<br>
-          • 재고 처리: 기존 구매 수량만큼 매점 재고가 자동 가산 복구됩니다.
+          • 환불 후 예상 잔고: <strong id="refund-after-talent" style="color: #059669; font-size: 1.05rem;"></strong> 달란트<br>
+          • 매점 재고: 기존 구매 수량만큼 재고가 자동 원상복구됩니다.
         </div>
       </div>
 
       <div class="form-group" style="margin-bottom: 1.2rem;">
-        <label class="form-label" for="refund-admin-name" style="color: #991b1b; font-weight: 700; margin-bottom: 0.3rem;">
-          👤 반품/환불 처리 담당자 성명 <span style="color: red;">*</span>
+        <label class="form-label" for="refund-admin-name" style="color: #991b1b; font-weight: 800; margin-bottom: 0.3rem; display: flex; align-items: center; gap: 4px;">
+          👤 반품/환불 처리 담당자 성명 <span style="color: red; font-size: 1rem;">*</span>
         </label>
-        <input type="text" id="refund-admin-name" name="admin_name" class="form-control" placeholder="예: 김도현 교사, 박선생님 (필수 입력)" required style="font-weight: 600;">
-        <small style="color: #64748b; font-size: 0.8rem; display: block; margin-top: 0.2rem;">
-          감사 로그 및 학생 매점 내역에 처리자 성명이 함께 기록됩니다.
+        <input type="text" id="refund-admin-name" name="admin_name" class="form-control" placeholder="예: 김도현 교사, 박선생님 (필수 입력)" required style="font-weight: 600; font-size: 0.95rem;">
+        <small style="color: #64748b; font-size: 0.8rem; display: block; margin-top: 0.25rem;">
+          ※ 누가 반품을 처리했는지 감사 이력 및 학생 매점 내역에 실명으로 기록됩니다.
         </small>
       </div>
 
@@ -400,12 +425,32 @@
 <script>
   let currentOrderItems = [];
   let originalTotal = 0;
+  let targetStudentName = '';
+  let targetStudentCurrentTalent = 0;
+  let maxAvailableTalent = 0;
+  let isTalentShortage = false;
 
-  function openModifyModal(orderId, orderNo, studentName, total, items) {
+  function openModifyModal(orderId, orderNo, studentName, studentCode, currentTalent, total, items) {
     document.getElementById('modify-form').action = `/admin/orders/${orderId}/modify`;
-    document.getElementById('modify-desc').innerText = `[${orderNo}] ${studentName} 학생 (기존 결제: ${total}달란트) 건의 품목 및 수량을 수정합니다.`;
-    originalTotal = total;
-    document.getElementById('modal-orig-total').innerText = total;
+    document.getElementById('modify-desc').innerText = `[${orderNo}] 주문의 품목 및 수량을 수정합니다.`;
+    
+    targetStudentName = studentName;
+    targetStudentCurrentTalent = parseInt(currentTalent, 10) || 0;
+    originalTotal = parseInt(total, 10) || 0;
+    maxAvailableTalent = targetStudentCurrentTalent + originalTotal;
+
+    document.getElementById('modal-student-info').innerText = `${studentName} (${studentCode || '학번없음'})`;
+    document.getElementById('modal-student-current-talent').innerText = `${targetStudentCurrentTalent}`;
+    document.getElementById('modal-student-order-talent').innerText = `${originalTotal}`;
+    document.getElementById('modal-max-avail-talent').innerText = `${maxAvailableTalent} 달란트`;
+    document.getElementById('modal-orig-total').innerText = `${originalTotal}`;
+
+    // 담당자 입력란 초기화 (과거 입력값 유지 또는 비움)
+    const adminInput = document.getElementById('modify-admin-name');
+    if (!adminInput.value) {
+      const savedAdmin = localStorage.getItem('yuljeon_last_admin_name') || '';
+      adminInput.value = savedAdmin;
+    }
 
     currentOrderItems = (items || []).map(it => ({
       itemId: it.itemId,
@@ -507,16 +552,98 @@
     document.getElementById('modal-new-total').innerText = newTotal;
     const diff = newTotal - originalTotal;
     const diffEl = document.getElementById('modal-diff-total');
+    const alertEl = document.getElementById('modify-balance-alert');
+    const detailEl = document.getElementById('modify-balance-detail');
+    const submitBtn = document.getElementById('modify-submit-btn');
+    const summaryBox = document.getElementById('modify-summary-box');
+
     if (diff > 0) {
-      diffEl.innerText = `+${diff}달란트 (추가 차감)`;
+      diffEl.innerText = `+${diff}달란트 (추가 차감 필요)`;
       diffEl.style.color = '#dc2626';
+
+      // 잔고 검증: 추가 차감액이 현재 보유 달란트 초과 여부
+      if (diff > targetStudentCurrentTalent) {
+        isTalentShortage = true;
+        const shortage = diff - targetStudentCurrentTalent;
+        alertEl.style.display = 'block';
+        detailEl.innerText = `학생의 현재 보유 잔고는 ${targetStudentCurrentTalent}달란트이며, 수정된 결제액은 기존보다 ${diff}달란트가 더 많아 ${shortage}달란트가 부족합니다.`;
+        summaryBox.style.background = '#fef2f2';
+        summaryBox.style.borderColor = '#fca5a5';
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.5';
+        submitBtn.style.cursor = 'not-allowed';
+      } else {
+        isTalentShortage = false;
+        alertEl.style.display = 'none';
+        summaryBox.style.background = '#eff6ff';
+        summaryBox.style.borderColor = '#bfdbfe';
+        submitBtn.disabled = false;
+        submitBtn.style.opacity = '1';
+        submitBtn.style.cursor = 'pointer';
+      }
     } else if (diff < 0) {
-      diffEl.innerText = `${diff}달란트 (추가 환불)`;
+      isTalentShortage = false;
+      alertEl.style.display = 'none';
+      diffEl.innerText = `${diff}달란트 (+${Math.abs(diff)}달란트 학생에게 환불)`;
       diffEl.style.color = '#059669';
+      summaryBox.style.background = '#f0fdf4';
+      summaryBox.style.borderColor = '#bbf7d0';
+      submitBtn.disabled = false;
+      submitBtn.style.opacity = '1';
+      submitBtn.style.cursor = 'pointer';
     } else {
-      diffEl.innerText = `0달란트 (변동 없음)`;
+      isTalentShortage = false;
+      alertEl.style.display = 'none';
+      diffEl.innerText = `0달란트 (금액 변동 없음)`;
       diffEl.style.color = '#1e40af';
+      summaryBox.style.background = '#eff6ff';
+      summaryBox.style.borderColor = '#bfdbfe';
+      submitBtn.disabled = false;
+      submitBtn.style.opacity = '1';
+      submitBtn.style.cursor = 'pointer';
     }
+  }
+
+  function validateModifyForm(event) {
+    const adminInput = document.getElementById('modify-admin-name');
+    const adminName = (adminInput.value || '').trim();
+
+    if (!adminName) {
+      alert('수정 처리를 진행하는 담당자 성명을 반드시 입력해 주세요.');
+      adminInput.focus();
+      event.preventDefault();
+      return false;
+    }
+
+    if (!currentOrderItems || currentOrderItems.length === 0) {
+      alert('주문 품목이 최소 1개 이상 존재해야 합니다. (전체 취소는 반품/환불 버튼을 이용해 주세요)');
+      event.preventDefault();
+      return false;
+    }
+
+    if (isTalentShortage) {
+      alert('학생의 달란트 잔고가 부족하여 수량을 증가시킬 수 없습니다. 품목 수량을 조절해 주세요.');
+      event.preventDefault();
+      return false;
+    }
+
+    localStorage.setItem('yuljeon_last_admin_name', adminName);
+    return true;
+  }
+
+  function validateRefundForm(event) {
+    const adminInput = document.getElementById('refund-admin-name');
+    const adminName = (adminInput.value || '').trim();
+
+    if (!adminName) {
+      alert('반품/환불 처리를 진행하는 담당자 성명을 반드시 입력해 주세요.');
+      adminInput.focus();
+      event.preventDefault();
+      return false;
+    }
+
+    localStorage.setItem('yuljeon_last_admin_name', adminName);
+    return true;
   }
 
   function escapeHtml(text) {
@@ -529,12 +656,21 @@
     document.getElementById('modify-modal').classList.remove('show');
   }
 
-  function openRefundModal(orderId, orderNo, studentName, totalPoints) {
+  function openRefundModal(orderId, orderNo, studentName, studentCode, currentTalent, totalPoints) {
     document.getElementById('refund-form').action = `/admin/orders/${orderId}/modify`;
     document.getElementById('refund-order-number').innerText = orderNo;
-    document.getElementById('refund-student-name').innerText = studentName;
-    document.getElementById('refund-total-points').innerText = `+${totalPoints}`;
-    document.getElementById('refund-admin-name').value = '';
+    document.getElementById('refund-student-name').innerText = `${studentName} (${studentCode || '학번없음'})`;
+    
+    const curTalent = parseInt(currentTalent, 10) || 0;
+    const pts = parseInt(totalPoints, 10) || 0;
+    document.getElementById('refund-current-talent').innerText = `${curTalent}`;
+    document.getElementById('refund-total-points').innerText = `+${pts}`;
+    document.getElementById('refund-after-talent').innerText = `${curTalent + pts}`;
+
+    const adminInput = document.getElementById('refund-admin-name');
+    const savedAdmin = localStorage.getItem('yuljeon_last_admin_name') || '';
+    adminInput.value = savedAdmin;
+
     document.getElementById('refund-modal').classList.add('show');
   }
 
@@ -543,3 +679,4 @@
   }
 </script>
 {% endblock %}
+
