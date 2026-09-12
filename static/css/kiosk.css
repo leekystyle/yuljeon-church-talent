@@ -354,10 +354,11 @@
 }
 
 .kiosk-cart-list {
-  max-height: 280px;
-  overflow-y: auto;
+  /* 장바구니 품목 추가 시 스크롤 없이 전체 목록이 펼쳐지고 하단 잔액 박스가 아래로 밀리도록 자동 확장 */
+  max-height: none;
+  overflow-y: visible;
   margin: 0.9rem 0;
-  padding-right: 4px;
+  padding-right: 0;
 }
 
 .kiosk-cart-item {
