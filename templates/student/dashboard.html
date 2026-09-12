@@ -140,4 +140,58 @@
     {% endif %}
   </div>
 </div>
+
+{% if recent_adjustments %}
+<!-- 최근 구매 수정 및 반품/환불 안내 카드 -->
+<div class="card" style="margin-top: 1.5rem; border-left: 4px solid #3b82f6; background: #f8faff;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+    <h3 style="font-size: 1.1rem; font-weight: 700; color: #1e3a8a; display: flex; align-items: center; gap: 6px;">
+      🔄 최근 매점 구매내역 수정 및 반품/환불 내역
+    </h3>
+    <a href="/student/history" style="font-size: 0.85rem; color: #2563eb; text-decoration: none; font-weight: 600;">상세보기 ➔</a>
+  </div>
+  <div class="table-responsive">
+    <table class="styled-table" style="background: white;">
+      <thead>
+        <tr>
+          <th>일시</th>
+          <th>주문번호</th>
+          <th>처리 구분</th>
+          <th>변경 내용</th>
+          <th>반영 달란트</th>
+          <th>처리 담당자</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in recent_adjustments %}
+        <tr>
+          <td>{{ a.adjusted_at.strftime('%m-%d %H:%M') if a.adjusted_at else '' }}</td>
+          <td><code style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem;">#{{ a.order_id }}</code></td>
+          <td>
+            {% if a.action_type == 'REFUND' %}
+            <span style="background: #fee2e2; color: #b91c1c; font-weight: 700; padding: 3px 8px; border-radius: 4px; font-size: 0.8rem;">전액 반품/환불</span>
+            {% else %}
+            <span style="background: #e0e7ff; color: #4338ca; font-weight: 700; padding: 3px 8px; border-radius: 4px; font-size: 0.8rem;">내역 수정</span>
+            {% endif %}
+          </td>
+          <td style="font-size: 0.85rem; color: #475569;">{{ a.change_summary }}</td>
+          <td>
+            {% if a.diff_points > 0 %}
+            <span style="color: #059669; font-weight: 800; font-size: 0.95rem;">+{{ a.diff_points }} (환불)</span>
+            {% elif a.diff_points < 0 %}
+            <span style="color: #dc2626; font-weight: 800; font-size: 0.95rem;">{{ a.diff_points }} (추가차감)</span>
+            {% else %}
+            <span style="color: #64748b; font-weight: 600;">0 (금액변동없음)</span>
+            {% endif %}
+          </td>
+          <td style="font-size: 0.85rem; font-weight: 600; color: #1e293b;">
+            <span style="background: #f1f5f9; padding: 3px 8px; border-radius: 12px; border: 1px solid #cbd5e1;">👤 {{ a.admin_name }} 선생님</span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
 {% endblock %}

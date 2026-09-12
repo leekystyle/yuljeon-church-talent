@@ -1005,6 +1005,7 @@ async def modify_order(
     student = order.student
     form_data = await request.form()
     action = form_data.get("action")
+    admin_name = form_data.get("admin_name", "").strip() or "관리자"
 
     try:
         # 기존 결제 상태 및 품목 요약 사전 백업
@@ -1037,7 +1038,7 @@ async def modify_order(
                 new_total_points=0,
                 diff_points=prev_total,  # 전액 환불 반환
                 details=f"전체 반품/환불 완료 (취소 품목: {old_items_summary}, +{prev_total}달란트 잔액 복구)",
-                admin_name="관리자",
+                admin_name=admin_name,
                 adjusted_at=get_kst_now()
             )
             db.add(adj_log)
@@ -1163,7 +1164,7 @@ async def modify_order(
                 new_total_points=new_total,
                 diff_points=diff,
                 details=f"품목/수량 수정: [{old_items_summary}] ➔ [{new_items_summary}] (결제: {prev_total} ➔ {new_total}달란트, {diff_desc})",
-                admin_name="관리자",
+                admin_name=admin_name,
                 adjusted_at=get_kst_now()
             )
             db.add(adj_log)

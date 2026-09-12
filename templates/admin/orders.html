@@ -167,10 +167,9 @@
               ])'>
                 ✏️ 수정
               </button>
-              <form action="/admin/orders/{{ o.id }}/modify" method="POST" onsubmit="return confirm('\'{{ o.order_number }}\' 구매 건을 반품(환불) 처리하시겠습니까? 학생에게 결제 달란트가 즉시 복구됩니다.');" style="display: inline;">
-                <input type="hidden" name="action" value="refund">
-                <button type="submit" class="btn btn-sm btn-danger">반품/환불</button>
-              </form>
+              <button type="button" class="btn btn-sm btn-danger" onclick='openRefundModal({{ o.id }}, {{ o.order_number | tojson }}, {{ o.student.name | tojson }}, {{ o.total_points }})'>
+                반품/환불
+              </button>
             </div>
             {% else %}
             <span style="color: var(--text-muted); font-size: 0.85rem;">조치 완료</span>
@@ -254,8 +253,10 @@
           <td style="color: #334155; font-size: 0.85rem;">
             {{ adj.details or '-' }}
           </td>
-          <td style="text-align: center; color: #64748b;">
-            {{ adj.admin_name }}
+          <td style="text-align: center;">
+            <span class="badge" style="background: #e0e7ff; color: #3730a3; font-weight: 700; font-size: 0.82rem; padding: 0.25rem 0.6rem;">
+              {{ adj.admin_name or '관리자' }}
+            </span>
           </td>
         </tr>
         {% else %}
@@ -283,6 +284,17 @@
 
     <form id="modify-form" method="POST">
       <input type="hidden" name="action" value="update">
+
+      <!-- 처리 담당자 성명 입력 (누가 수정했는지 파악) -->
+      <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 0.8rem 1rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+        <label class="form-label" for="modify-admin-name" style="margin: 0; color: #1e40af; font-weight: 700; white-space: nowrap;">
+          👤 수정 처리 담당자 성명 <span style="color: red;">*</span>
+        </label>
+        <input type="text" id="modify-admin-name" name="admin_name" class="form-control" placeholder="예: 김도현 교사, 박선생님 (필수)" style="flex: 1; min-width: 200px; font-weight: 600;" required>
+        <small style="color: #64748b; font-size: 0.78rem; width: 100%;">
+          ※ 관리자가 여러 명인 환경에서 책임 소재 및 감사 이력 파악을 위해 담당자 이름을 입력합니다.
+        </small>
+      </div>
 
       <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin-bottom: 1.2rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
@@ -340,6 +352,48 @@
     </form>
   </div>
 </div>
+
+<!-- 반품/환불 처리 모달 (담당자 성명 필수 입력) -->
+<div id="refund-modal" class="modal-backdrop">
+  <div class="modal-content" style="max-width: 480px; width: 95%;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+      <h3 style="margin: 0; color: #dc2626; font-size: 1.3rem;">↩️ 구매 반품 및 전액 환불</h3>
+      <button type="button" onclick="closeRefundModal()" style="background: none; border: none; font-size: 1.3rem; cursor: pointer; color: #64748b;">✕</button>
+    </div>
+    <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1.2rem;" id="refund-desc">
+      주문을 취소하고 학생에게 결제 달란트를 즉시 전액 복구합니다.
+    </p>
+
+    <form id="refund-form" method="POST">
+      <input type="hidden" name="action" value="refund">
+
+      <div style="background: #fee2e2; border: 1px solid #fca5a5; border-radius: 8px; padding: 1rem; margin-bottom: 1.2rem;">
+        <div style="font-size: 0.9rem; color: #991b1b; line-height: 1.5;">
+          • 주문번호: <strong id="refund-order-number"></strong><br>
+          • 대상 학생: <strong id="refund-student-name"></strong><br>
+          • 환불 복구 달란트: <strong id="refund-total-points" style="font-size: 1.1rem; color: #dc2626;"></strong> 달란트<br>
+          • 재고 처리: 기존 구매 수량만큼 매점 재고가 자동 가산 복구됩니다.
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 1.2rem;">
+        <label class="form-label" for="refund-admin-name" style="color: #991b1b; font-weight: 700; margin-bottom: 0.3rem;">
+          👤 반품/환불 처리 담당자 성명 <span style="color: red;">*</span>
+        </label>
+        <input type="text" id="refund-admin-name" name="admin_name" class="form-control" placeholder="예: 김도현 교사, 박선생님 (필수 입력)" required style="font-weight: 600;">
+        <small style="color: #64748b; font-size: 0.8rem; display: block; margin-top: 0.2rem;">
+          감사 로그 및 학생 매점 내역에 처리자 성명이 함께 기록됩니다.
+        </small>
+      </div>
+
+      <div style="display: flex; gap: 0.5rem;">
+        <button type="button" class="btn btn-outline" style="flex: 1;" onclick="closeRefundModal()">취소</button>
+        <button type="submit" class="btn btn-danger" style="flex: 2; font-weight: 700;">반품/환불 확정 실행</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -473,6 +527,19 @@
 
   function closeModifyModal() {
     document.getElementById('modify-modal').classList.remove('show');
+  }
+
+  function openRefundModal(orderId, orderNo, studentName, totalPoints) {
+    document.getElementById('refund-form').action = `/admin/orders/${orderId}/modify`;
+    document.getElementById('refund-order-number').innerText = orderNo;
+    document.getElementById('refund-student-name').innerText = studentName;
+    document.getElementById('refund-total-points').innerText = `+${totalPoints}`;
+    document.getElementById('refund-admin-name').value = '';
+    document.getElementById('refund-modal').classList.add('show');
+  }
+
+  function closeRefundModal() {
+    document.getElementById('refund-modal').classList.remove('show');
   }
 </script>
 {% endblock %}

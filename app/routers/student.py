@@ -7,7 +7,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import Student, TalentRule, TalentEarning, Order, Item
+from app.models import Student, TalentRule, TalentEarning, Order, Item, OrderAdjustmentLog
 from app.timezone import get_kst_now
 from app.image_utils import bytes_to_data_url
 
@@ -170,12 +170,15 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
         .order_by(TalentEarning.created_at.desc()).limit(5).all()
     recent_orders = db.query(Order).filter(Order.student_id == student.id)\
         .order_by(Order.created_at.desc()).limit(5).all()
+    recent_adjustments = db.query(OrderAdjustmentLog).filter(OrderAdjustmentLog.student_id == student.id)\
+        .order_by(OrderAdjustmentLog.adjusted_at.desc()).limit(3).all()
 
     return templates.TemplateResponse("student/dashboard.html", {
         "request": request,
         "student": student,
         "recent_earnings": recent_earnings,
-        "recent_orders": recent_orders
+        "recent_orders": recent_orders,
+        "recent_adjustments": recent_adjustments
     })
 
 
@@ -192,13 +195,17 @@ async def history(request: Request, db: Session = Depends(get_db)):
         .order_by(TalentEarning.created_at.desc()).all()
     orders = db.query(Order).filter(Order.student_id == student.id)\
         .order_by(Order.created_at.desc()).all()
+    adjustments = db.query(OrderAdjustmentLog).filter(OrderAdjustmentLog.student_id == student.id)\
+        .order_by(OrderAdjustmentLog.adjusted_at.desc()).all()
 
     return templates.TemplateResponse("student/history.html", {
         "request": request,
         "student": student,
         "earnings": earnings,
-        "orders": orders
+        "orders": orders,
+        "adjustments": adjustments
     })
+
 
 
 @router.get("/rules", response_class=HTMLResponse)

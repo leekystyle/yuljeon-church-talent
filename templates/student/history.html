@@ -52,10 +52,13 @@
 </div>
 
 <!-- 사용 세부 내역 -->
-<div class="card">
-  <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
-    <span style="font-size: 1.4rem;">🛍️</span>
-    <h3 style="font-size: 1.25rem; font-weight: 700; color: #dc2626;">매점 사용(차감) 세부 내역 (총 {{ orders|length }}건)</h3>
+<div class="card" style="margin-bottom: 2rem;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+    <div style="display: flex; align-items: center; gap: 0.5rem;">
+      <span style="font-size: 1.4rem;">🛍️</span>
+      <h3 style="font-size: 1.25rem; font-weight: 700; color: #dc2626; margin: 0;">매점 물품 구매(차감) 내역</h3>
+    </div>
+    <span class="badge badge-danger">총 {{ orders|length }}건</span>
   </div>
 
   {% if orders %}
@@ -67,7 +70,7 @@
           <th>구매 일시(KST)</th>
           <th>구매 물품 및 수량</th>
           <th>주문 상태</th>
-          <th style="text-align: right;">차감 달란트</th>
+          <th style="text-align: right;">결제 달란트</th>
         </tr>
       </thead>
       <tbody>
@@ -86,19 +89,98 @@
             {% if o.status == 'COMPLETED' %}
             <span class="badge badge-success">결제완료</span>
             {% elif o.status == 'REFUNDED' %}
-            <span class="badge badge-danger">반품/환불</span>
+            <span class="badge badge-danger">반품/환불완료</span>
             {% else %}
             <span class="badge badge-warning">{{ o.status }}</span>
             {% endif %}
           </td>
-          <td style="text-align: right; color: #dc2626; font-weight: 800; font-size: 1.05rem;">-{{ o.total_points }} 달란트</td>
+          <td style="text-align: right;">
+            {% if o.status == 'REFUNDED' %}
+            <div style="color: #94a3b8; text-decoration: line-through; font-size: 0.88rem;">-{{ o.total_points }} 달란트</div>
+            <div style="color: #059669; font-weight: 800; font-size: 0.95rem;">✓ 전액 환불 복구</div>
+            {% else %}
+            <span style="color: #dc2626; font-weight: 800; font-size: 1.05rem;">-{{ o.total_points }} 달란트</span>
+            {% endif %}
+          </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
   {% else %}
-  <p style="text-align: center; color: var(--text-muted); padding: 2rem 0;">사용 내역이 없습니다.</p>
+  <p style="text-align: center; color: var(--text-muted); padding: 2rem 0;">구매 사용 내역이 없습니다.</p>
+  {% endif %}
+</div>
+
+<!-- 구매내역 수정 및 반품/환불 내역 카드 (학생 열람 전용) -->
+<div class="card" style="border-top: 4px solid #10b981; margin-bottom: 2rem;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.5rem;">
+    <div style="display: flex; align-items: center; gap: 0.5rem;">
+      <span style="font-size: 1.4rem;">🔄</span>
+      <div>
+        <h3 style="font-size: 1.25rem; font-weight: 700; color: #047857; margin: 0;">매점 구매내역 수정 및 반품/환불 내역</h3>
+        <p style="color: var(--text-muted); font-size: 0.83rem; margin: 0.2rem 0 0 0;">
+          물품 교환, 수량 수정, 또는 반품으로 인해 환불(+달란트)되거나 추가 차감된 세부 감사 이력입니다.
+        </p>
+      </div>
+    </div>
+    <span class="badge badge-success">총 {{ adjustments|length }}건</span>
+  </div>
+
+  {% if adjustments %}
+  <div class="table-responsive">
+    <table class="styled-table" style="font-size: 0.9rem;">
+      <thead>
+        <tr>
+          <th style="width: 140px;">일시(KST)</th>
+          <th style="width: 130px;">주문번호</th>
+          <th style="width: 100px; text-align: center;">구분</th>
+          <th>상세 변경 내역</th>
+          <th style="width: 170px; text-align: right;">달란트 변동</th>
+          <th style="width: 100px; text-align: center;">담당 선생님</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for adj in adjustments %}
+        <tr>
+          <td style="color: #64748b; font-size: 0.84rem;">
+            {{ adj.adjusted_at.strftime('%Y-%m-%d %H:%M:%S') if adj.adjusted_at else '' }}
+          </td>
+          <td><code style="font-size: 0.83rem;">{{ adj.order_number }}</code></td>
+          <td style="text-align: center;">
+            {% if adj.action_type == 'REFUND' %}
+            <span class="badge badge-danger">반품/환불</span>
+            {% elif adj.action_type == 'UPDATE' %}
+            <span class="badge badge-primary">품목/수량 수정</span>
+            {% else %}
+            <span class="badge badge-warning">{{ adj.action_type }}</span>
+            {% endif %}
+          </td>
+          <td style="color: #1e293b; font-size: 0.88rem;">
+            {{ adj.details or '-' }}
+          </td>
+          <td style="text-align: right;">
+            {% if adj.diff_points > 0 %}
+            <span style="color: #059669; font-weight: 800; font-size: 1.05rem;">+{{ adj.diff_points }} 달란트 (환불)</span>
+            {% elif adj.diff_points < 0 %}
+            <span style="color: #dc2626; font-weight: 800; font-size: 1.05rem;">{{ adj.diff_points }} 달란트 (추가차감)</span>
+            {% else %}
+            <span style="color: #64748b; font-weight: 700;">0 달란트 (금액변동없음)</span>
+            {% endif %}
+          </td>
+          <td style="text-align: center;">
+            <span class="badge" style="background: #e0e7ff; color: #3730a3; font-weight: 700; font-size: 0.8rem;">
+              {{ adj.admin_name or '교사' }}
+            </span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p style="text-align: center; color: var(--text-muted); padding: 1.8rem 0;">수정되거나 반품/환불된 내역이 없습니다.</p>
   {% endif %}
 </div>
 {% endblock %}
+
