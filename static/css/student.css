@@ -1,0 +1,803 @@
+/* ==========================================================================
+   율전중앙교회 학생 달란트 포털 전용 모바일 최적화 & 유초중고 친화형 스타일시트
+   ========================================================================== */
+
+:root {
+  --kid-primary: #2563eb;
+  --kid-primary-hover: #1d4ed8;
+  --kid-primary-light: #eff6ff;
+  --kid-gold: #f59e0b;
+  --kid-gold-light: #fef3c7;
+  --kid-gold-dark: #b45309;
+  --kid-mint: #10b981;
+  --kid-mint-light: #ecfdf5;
+  --kid-rose: #f43f5e;
+  --kid-rose-light: #fff1f2;
+  --kid-purple: #8b5cf6;
+  --kid-purple-light: #f5f3ff;
+  --kid-sky: #0ea5e9;
+  --kid-sky-light: #f0f9ff;
+  --kid-radius-sm: 12px;
+  --kid-radius-md: 18px;
+  --kid-radius-lg: 24px;
+  --kid-radius-pill: 9999px;
+  --kid-shadow-soft: 0 4px 16px -2px rgba(37, 99, 235, 0.08);
+  --kid-shadow-card: 0 8px 24px -4px rgba(15, 23, 42, 0.08);
+  --kid-shadow-glow: 0 10px 25px -5px rgba(245, 158, 11, 0.35);
+}
+
+/* --------------------------------------------------------------------------
+   1. 학생 포털 헤더 (모바일 반응형 컴팩트 앱바)
+   -------------------------------------------------------------------------- */
+.student-mobile-header {
+  background: #ffffff;
+  border-bottom: 2px solid #e2e8f0;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(10px);
+}
+
+.student-mobile-header .header-inner {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0.65rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.student-app-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+}
+
+.student-app-brand .brand-icon {
+  font-size: 1.4rem;
+  animation: floatIcon 3s ease-in-out infinite;
+}
+
+@keyframes floatIcon {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+.student-app-brand .brand-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #1e3a8a;
+  letter-spacing: -0.5px;
+}
+
+.student-app-brand .brand-badge {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.18rem 0.5rem;
+  border-radius: var(--kid-radius-pill);
+}
+
+.student-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* --------------------------------------------------------------------------
+   2. 지갑 히어로 카드 (내 달란트 저금통)
+   -------------------------------------------------------------------------- */
+.talent-hero-card {
+  background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 60%, #3b82f6 100%);
+  border-radius: var(--kid-radius-lg);
+  padding: 1.4rem 1.4rem 1.2rem;
+  color: white;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 12px 30px -8px rgba(37, 99, 235, 0.35);
+  margin-bottom: 1.2rem;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.talent-hero-card::before {
+  content: "";
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 140px;
+  height: 140px;
+  background: radial-gradient(circle, rgba(254, 240, 138, 0.35) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.talent-hero-card::after {
+  content: "✨";
+  position: absolute;
+  top: 15px;
+  right: 20px;
+  font-size: 1.6rem;
+  opacity: 0.7;
+  animation: pulseSparkle 2s ease-in-out infinite;
+}
+
+@keyframes pulseSparkle {
+  0%, 100% { transform: scale(1); opacity: 0.7; }
+  50% { transform: scale(1.2); opacity: 1; }
+}
+
+/* 프로필 상단 행 */
+.hero-profile-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.1rem;
+  position: relative;
+  z-index: 1;
+}
+
+.hero-profile-info {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.hero-avatar {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: white;
+  border: 3px solid #fef08a;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+}
+
+.hero-greeting {
+  font-size: 0.85rem;
+  color: #bfdbfe;
+  margin-bottom: 0.15rem;
+  font-weight: 500;
+}
+
+.hero-name {
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1.2;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.hero-dept-badge {
+  background: rgba(254, 240, 138, 0.25);
+  border: 1px solid rgba(254, 240, 138, 0.6);
+  color: #fef08a;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.15rem 0.55rem;
+  border-radius: var(--kid-radius-pill);
+}
+
+/* 중앙 대형 달란트 잔고 표시 */
+.hero-balance-box {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  border-radius: var(--kid-radius-md);
+  padding: 1.1rem 1.2rem;
+  text-align: center;
+  margin-bottom: 1.1rem;
+  position: relative;
+  z-index: 1;
+}
+
+.hero-balance-label {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #fef08a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-bottom: 0.25rem;
+}
+
+.hero-balance-val {
+  font-size: 2.75rem;
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow: 0 3px 12px rgba(0, 0, 0, 0.25);
+  line-height: 1.1;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.hero-balance-val .unit {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #fef08a;
+}
+
+/* 2컬럼 컴팩트 서브 통계 */
+.hero-substats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+  position: relative;
+  z-index: 1;
+}
+
+.substat-card {
+  background: rgba(15, 23, 42, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--kid-radius-sm);
+  padding: 0.65rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.substat-label {
+  font-size: 0.75rem;
+  color: #cbd5e1;
+  font-weight: 600;
+}
+
+.substat-val {
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.substat-val.earned {
+  color: #6ee7b7;
+}
+
+.substat-val.spent {
+  color: #fca5a5;
+}
+
+/* 바로가기 버튼 퀵 바 */
+.hero-quick-actions {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  position: relative;
+  z-index: 1;
+  -webkit-overflow-scrolling: touch;
+}
+
+.hero-quick-actions::-webkit-scrollbar {
+  display: none;
+}
+
+.quick-btn {
+  background: rgba(255, 255, 255, 0.95);
+  color: #1e3a8a;
+  text-decoration: none;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 0.55rem 0.9rem;
+  border-radius: var(--kid-radius-pill);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  flex-shrink: 0;
+}
+
+.quick-btn:hover, .quick-btn:active {
+  transform: translateY(-2px) scale(1.02);
+  background: #ffffff;
+  color: #2563eb;
+}
+
+.quick-btn.accent {
+  background: #fef08a;
+  color: #854d0e;
+  font-weight: 800;
+}
+
+/* --------------------------------------------------------------------------
+   3. 모바일 세그먼트 탭 내비게이터 (세로 길이 압축 핵심)
+   -------------------------------------------------------------------------- */
+.student-tab-nav {
+  display: flex;
+  background: #e2e8f0;
+  border-radius: var(--kid-radius-pill);
+  padding: 0.28rem;
+  margin-bottom: 1.2rem;
+  position: sticky;
+  top: 60px;
+  z-index: 90;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.tab-nav-btn {
+  flex: 1;
+  text-align: center;
+  padding: 0.65rem 0.8rem;
+  border-radius: var(--kid-radius-pill);
+  border: none;
+  background: transparent;
+  color: #475569;
+  font-weight: 700;
+  font-size: 0.92rem;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.tab-nav-btn.active {
+  background: #ffffff;
+  color: #2563eb;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.15);
+}
+
+.tab-badge {
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 0.72rem;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+}
+
+.tab-nav-btn.active .tab-badge {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+/* 탭 패널 */
+.tab-content-panel {
+  display: none;
+  animation: fadeInPanel 0.25s ease-out;
+}
+
+.tab-content-panel.active {
+  display: block;
+}
+
+@keyframes fadeInPanel {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* --------------------------------------------------------------------------
+   4. 모바일 피드형 활동 내역 카드 (기존 와이드 표 대체)
+   -------------------------------------------------------------------------- */
+.activity-filter-bar {
+  display: flex;
+  gap: 0.4rem;
+  overflow-x: auto;
+  padding-bottom: 0.6rem;
+  margin-bottom: 0.8rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.activity-filter-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.filter-chip {
+  padding: 0.4rem 0.8rem;
+  border-radius: var(--kid-radius-pill);
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #475569;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.filter-chip.active {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.2);
+}
+
+.activity-feed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.activity-card-item {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--kid-radius-md);
+  padding: 0.95rem 1.1rem;
+  box-shadow: var(--kid-shadow-soft);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  transition: all 0.2s ease;
+}
+
+.activity-card-item:hover, .activity-card-item:active {
+  border-color: #93c5fd;
+  transform: translateY(-1px);
+}
+
+.activity-card-left {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.activity-icon-bubble {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--kid-radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  flex-shrink: 0;
+}
+
+.activity-icon-bubble.earn {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+.activity-icon-bubble.spent {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.activity-icon-bubble.adjust {
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+}
+
+.activity-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 0.15rem;
+  line-height: 1.3;
+}
+
+.activity-meta {
+  font-size: 0.78rem;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.activity-badge-right {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.activity-points {
+  font-size: 1.15rem;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+}
+
+.activity-points.positive {
+  color: #059669;
+}
+
+.activity-points.negative {
+  color: #dc2626;
+}
+
+.activity-points.adjust {
+  color: #2563eb;
+}
+
+/* --------------------------------------------------------------------------
+   5. 달란트 톡톡 소통 공간 (모바일 채팅 버블형 디자인)
+   -------------------------------------------------------------------------- */
+.tok-write-card {
+  background: #ffffff;
+  border: 2px solid #a7f3d0;
+  border-radius: var(--kid-radius-lg);
+  padding: 1.1rem;
+  box-shadow: 0 6px 20px -4px rgba(16, 185, 129, 0.15);
+  margin-bottom: 1.2rem;
+}
+
+.tok-write-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.65rem;
+}
+
+.tok-write-author {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #065f46;
+}
+
+.tok-input-box {
+  width: 100%;
+  border: 1.5px solid #e2e8f0;
+  border-radius: var(--kid-radius-md);
+  padding: 0.75rem 0.9rem;
+  font-size: 0.95rem;
+  font-family: inherit;
+  resize: none;
+  outline: none;
+  background: #f8fafc;
+  transition: all 0.2s ease;
+}
+
+.tok-input-box:focus {
+  background: #ffffff;
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+.tok-emoji-bar {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+  margin: 0.5rem 0;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.tok-emoji-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.emoji-btn {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--kid-radius-pill);
+  padding: 0.25rem 0.55rem;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+  user-select: none;
+}
+
+.emoji-btn:hover, .emoji-btn:active {
+  transform: scale(1.2);
+  background: #e2e8f0;
+}
+
+.tok-write-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.4rem;
+}
+
+.tok-char-counter {
+  font-size: 0.78rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.tok-submit-btn {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  border: none;
+  font-weight: 800;
+  font-size: 0.88rem;
+  padding: 0.55rem 1.1rem;
+  border-radius: var(--kid-radius-pill);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  transition: all 0.15s ease;
+}
+
+.tok-submit-btn:hover, .tok-submit-btn:active {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+}
+
+/* 톡톡 글 목록 (말풍선 피드) */
+.tok-feed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.tok-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--kid-radius-lg);
+  padding: 1rem 1.15rem;
+  box-shadow: var(--kid-shadow-soft);
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.tok-card.my-post {
+  border-color: #93c5fd;
+  background: #f8faff;
+}
+
+.tok-card.deleted-post {
+  border-color: #fecaca;
+  background: #fffafa;
+}
+
+.tok-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.55rem;
+}
+
+.tok-user-info {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.tok-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid #cbd5e1;
+  background: white;
+}
+
+.tok-user-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.tok-user-name {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.tok-my-badge {
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--kid-radius-pill);
+}
+
+.tok-time {
+  font-size: 0.72rem;
+  color: #94a3b8;
+}
+
+.tok-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.tok-action-btn {
+  background: transparent;
+  border: none;
+  font-size: 0.8rem;
+  color: #64748b;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.tok-action-btn:hover {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
+.tok-action-btn.delete:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.tok-body {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #1e293b;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.tok-deleted-banner {
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  color: #991b1b;
+  padding: 0.6rem 0.9rem;
+  border-radius: var(--kid-radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* --------------------------------------------------------------------------
+   6. 모바일 플로팅 독 (하단 고정 퀵 내비)
+   -------------------------------------------------------------------------- */
+.mobile-bottom-dock {
+  display: none;
+  position: fixed;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 24px);
+  max-width: 440px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(16px);
+  border: 1.5px solid rgba(226, 232, 240, 0.8);
+  border-radius: var(--kid-radius-pill);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.15);
+  padding: 0.35rem 0.6rem;
+  z-index: 999;
+  justify-content: space-around;
+  align-items: center;
+}
+
+.dock-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  text-decoration: none;
+  color: #64748b;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.3rem 0.6rem;
+  border-radius: var(--kid-radius-pill);
+  transition: all 0.15s ease;
+}
+
+.dock-item .dock-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.dock-item.active, .dock-item:hover {
+  color: #2563eb;
+  background: #eff6ff;
+}
+
+@media (max-width: 640px) {
+  .mobile-bottom-dock {
+    display: flex;
+  }
+  
+  /* 하단 독 공간 확보 */
+  body {
+    padding-bottom: 75px;
+  }
+}

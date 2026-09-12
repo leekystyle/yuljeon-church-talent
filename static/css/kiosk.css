@@ -1,191 +1,569 @@
-/* 매점 키오스크 태블릿/PC 전용 스타일 */
-.kiosk-wrapper {
-  display: grid;
-  grid-template-columns: 1fr 360px;
-  gap: 1.5rem;
-  min-height: calc(100vh - 120px);
+/* ==========================================================================
+   율전중앙교회 매점 키오스크 - 유초중고 친화형 & 태블릿 최적화 스타일시트
+   ========================================================================== */
+
+:root {
+  --kiosk-primary: #1e3a8a;
+  --kiosk-blue: #2563eb;
+  --kiosk-gold: #f59e0b;
+  --kiosk-gold-light: #fef08a;
+  --kiosk-mint: #10b981;
+  --kiosk-red: #ef4444;
+  --kiosk-bg: #f8fafc;
+  --kiosk-radius: 20px;
+  --kiosk-pill: 9999px;
+  --kiosk-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.08);
 }
 
-@media (max-width: 900px) {
+/* 키오스크 전체 레이아웃 */
+.kiosk-wrapper {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 960px) {
   .kiosk-wrapper {
     grid-template-columns: 1fr;
   }
 }
 
+/* 1. 상단 학생 환영 & 달란트 헤더 카드 */
 .kiosk-header-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1.2rem 1.8rem;
-  background: linear-gradient(135deg, #1e3a8a, #2563eb);
+  padding: 1.1rem 1.6rem;
+  background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 50%, #3b82f6 100%);
   color: white;
-  border-radius: var(--radius-md);
-  margin-bottom: 1.5rem;
-  box-shadow: 0 10px 20px -5px rgba(37, 99, 235, 0.25);
+  border-radius: var(--kiosk-radius);
+  margin-bottom: 1.4rem;
+  box-shadow: 0 12px 28px -6px rgba(37, 99, 235, 0.35);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
 .kiosk-student-profile {
   display: flex;
   align-items: center;
-  gap: 1.2rem;
+  gap: 1.1rem;
 }
 
 .kiosk-student-avatar {
-  width: 64px;
-  height: 64px;
+  width: 68px;
+  height: 68px;
   border-radius: 50%;
-  border: 3px solid #fef08a;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  border: 3.5px solid #fef08a;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.2);
   object-fit: cover;
   background: white;
+  flex-shrink: 0;
 }
 
-.kiosk-talent-badge {
-  background: #fef08a;
-  color: #854d0e;
-  font-size: 1.3rem;
+.kiosk-student-name {
+  font-size: 1.5rem;
   font-weight: 800;
-  padding: 0.4rem 1.2rem;
-  border-radius: 999px;
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-}
-
-/* Product Grid */
-.product-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-  gap: 1.2rem;
-}
-
-.product-card {
-  background: white;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 1.2rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  cursor: pointer;
-  user-select: none;
-}
-
-.product-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 24px -4px rgba(0,0,0,0.12);
-  border-color: var(--primary);
-}
-
-.product-card.out-of-stock {
-  opacity: 0.6;
-  pointer-events: none;
-}
-
-.product-img {
-  width: 90px;
-  height: 90px;
-  object-fit: contain;
-  margin-bottom: 0.8rem;
-}
-
-.product-name {
-  font-size: 1.05rem;
-  font-weight: 700;
-  margin-bottom: 0.3rem;
-  color: #1e293b;
-}
-
-.product-price {
-  font-size: 1.2rem;
-  font-weight: 800;
-  color: #d97706;
-  margin-bottom: 0.5rem;
-}
-
-.product-stock {
-  font-size: 0.82rem;
-  color: var(--text-muted);
-  margin-bottom: 0.8rem;
-}
-
-/* Cart Sidebar */
-.cart-sidebar {
-  background: white;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 1.5rem;
-  display: flex;
-  flex-direction: column;
-  box-shadow: var(--shadow-sm);
-  position: sticky;
-  top: 85px;
-  height: fit-content;
-}
-
-.cart-title {
-  font-size: 1.2rem;
-  font-weight: 700;
-  padding-bottom: 0.8rem;
-  border-bottom: 2px solid var(--border);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.cart-items-list {
-  flex: 1;
-  max-height: 380px;
-  overflow-y: auto;
-  margin: 1rem 0;
-}
-
-.cart-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.75rem 0;
-  border-bottom: 1px dashed var(--border);
-}
-
-.qty-control {
+  color: white;
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-.qty-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  border: 1px solid var(--border);
+.kiosk-student-badge {
+  background: rgba(254, 240, 138, 0.25);
+  border: 1px solid #fef08a;
+  color: #fef08a;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.15rem 0.6rem;
+  border-radius: var(--kiosk-pill);
+}
+
+.kiosk-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+/* 자동 로그아웃 타이머 배지 */
+.kiosk-timer-badge {
+  background: rgba(239, 68, 68, 0.25);
+  border: 1.5px solid rgba(254, 202, 202, 0.6);
+  padding: 0.4rem 0.9rem;
+  border-radius: var(--kiosk-pill);
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  backdrop-filter: blur(4px);
+}
+
+.kiosk-timer-badge .time-num {
+  font-size: 1.25rem;
+  color: #fef08a;
+  font-weight: 900;
+}
+
+/* 보유 달란트 골든 배지 */
+.kiosk-talent-badge {
+  background: linear-gradient(135deg, #fef08a, #fde047);
+  color: #854d0e;
+  font-size: 1.25rem;
+  font-weight: 900;
+  padding: 0.45rem 1.2rem;
+  border-radius: var(--kiosk-pill);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35);
+  border: 2px solid #ffffff;
+}
+
+/* 2. 카테고리 필터 탭 바 (어린이 맞춤형 대형 터치 탭) */
+.kiosk-cat-bar {
+  display: flex;
+  gap: 0.6rem;
+  overflow-x: auto;
+  padding-bottom: 0.6rem;
+  margin-bottom: 1.2rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.kiosk-cat-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.kiosk-cat-btn {
+  background: #ffffff;
+  border: 2px solid #e2e8f0;
+  color: #334155;
+  font-size: 0.95rem;
+  font-weight: 800;
+  padding: 0.6rem 1.1rem;
+  border-radius: var(--kiosk-pill);
+  cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  user-select: none;
+}
+
+.kiosk-cat-btn:hover {
+  border-color: #3b82f6;
+  color: #1e3a8a;
+  transform: translateY(-2px);
+}
+
+.kiosk-cat-btn:active {
+  transform: scale(0.96);
+}
+
+.kiosk-cat-btn.active {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: white;
+  border-color: #1e40af;
+  box-shadow: 0 6px 14px rgba(37, 99, 235, 0.3);
+}
+
+/* 3. 상품 카드 그리드 */
+.kiosk-product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1.2rem;
+}
+
+@media (max-width: 640px) {
+  .kiosk-product-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.8rem;
+  }
+}
+
+.kiosk-product-card {
+  background: #ffffff;
+  border: 2px solid #e2e8f0;
+  border-radius: var(--kiosk-radius);
+  padding: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  position: relative;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: var(--kiosk-shadow);
+  cursor: pointer;
+  user-select: none;
+}
+
+.kiosk-product-card:hover {
+  transform: translateY(-4px);
+  border-color: #3b82f6;
+  box-shadow: 0 12px 28px -6px rgba(37, 99, 235, 0.2);
+}
+
+.kiosk-product-card:active {
+  transform: scale(0.97);
+}
+
+.kiosk-product-card.out-of-stock {
+  opacity: 0.65;
   background: #f8fafc;
-  font-weight: bold;
+  pointer-events: none;
+  filter: grayscale(40%);
+}
+
+.kiosk-img-wrap {
+  width: 100%;
+  height: 120px;
+  background: linear-gradient(135deg, #f0fdf4 0%, #eff6ff 100%);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.8rem;
+  overflow: hidden;
+  padding: 0.5rem;
+}
+
+.kiosk-product-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  transition: transform 0.2s ease;
+}
+
+.kiosk-product-card:hover .kiosk-product-img {
+  transform: scale(1.08);
+}
+
+.kiosk-cat-tag {
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.15rem 0.55rem;
+  border-radius: var(--kiosk-pill);
+  margin-bottom: 0.4rem;
+}
+
+.kiosk-item-name {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #1e293b;
+  margin-bottom: 0.35rem;
+  line-height: 1.3;
+  min-height: 2.6em;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.kiosk-price-badge {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1.5px solid #fde68a;
+  font-size: 1.05rem;
+  font-weight: 900;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--kiosk-pill);
+  margin-bottom: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.kiosk-stock-status {
+  font-size: 0.78rem;
+  color: #64748b;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+.kiosk-add-btn {
+  width: 100%;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  border: none;
+  font-size: 0.95rem;
+  font-weight: 800;
+  padding: 0.65rem 0.8rem;
+  border-radius: var(--kiosk-pill);
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(16, 185, 129, 0.25);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  transition: all 0.15s ease;
+}
+
+.kiosk-add-btn:hover {
+  background: linear-gradient(135deg, #059669, #047857);
+}
+
+.kiosk-add-btn:active {
+  transform: scale(0.95);
+}
+
+/* 4. 장바구니 사이드바 (실물 바구니 느낌) */
+.kiosk-cart-box {
+  background: #ffffff;
+  border: 2px solid #e2e8f0;
+  border-radius: var(--kiosk-radius);
+  padding: 1.3rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+  position: sticky;
+  top: 75px;
+}
+
+.kiosk-cart-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 0.85rem;
+  border-bottom: 2px solid #f1f5f9;
+}
+
+.kiosk-cart-title {
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: #1e3a8a;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.kiosk-cart-clear-btn {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.25rem 0.65rem;
+  border-radius: var(--kiosk-pill);
+  cursor: pointer;
+}
+
+.kiosk-cart-list {
+  max-height: 280px;
+  overflow-y: auto;
+  margin: 0.9rem 0;
+  padding-right: 4px;
+}
+
+.kiosk-cart-item {
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 0.75rem 0.85rem;
+  margin-bottom: 0.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.kiosk-item-info-name {
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #1e293b;
+  margin-bottom: 0.15rem;
+}
+
+.kiosk-item-info-sub {
+  font-size: 0.82rem;
+  color: #d97706;
+  font-weight: 700;
+}
+
+.kiosk-qty-stepper {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.kiosk-stepper-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1.5px solid #cbd5e1;
+  background: white;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #1e293b;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-}
-.qty-btn:hover {
-  background: #e2e8f0;
-}
-
-.cart-total-box {
-  background: #f8fafc;
-  border-radius: var(--radius-sm);
-  padding: 1rem;
-  margin-top: 1rem;
-  border: 1px solid var(--border);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  user-select: none;
 }
 
-.cart-total-row {
+.kiosk-stepper-btn:active {
+  transform: scale(0.9);
+  background: #f1f5f9;
+}
+
+.kiosk-stepper-num {
+  font-size: 1rem;
+  font-weight: 800;
+  min-width: 22px;
+  text-align: center;
+}
+
+/* 어린이 직관형 달란트 뺄셈 계산기 박스 */
+.kiosk-calc-box {
+  background: #f8faff;
+  border: 2px solid #bfdbfe;
+  border-radius: 16px;
+  padding: 0.9rem 1rem;
+  margin: 0.9rem 0;
+}
+
+.kiosk-calc-row {
   display: flex;
   justify-content: space-between;
-  font-size: 1.15rem;
+  align-items: center;
+  font-size: 0.88rem;
+  color: #475569;
+  margin-bottom: 0.4rem;
+}
+
+.kiosk-calc-row.final {
+  border-top: 1.5px dashed #cbd5e1;
+  padding-top: 0.5rem;
+  margin-top: 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: #1e3a8a;
+  margin-bottom: 0;
+}
+
+.kiosk-calc-row .val-num {
   font-weight: 800;
-  color: #0f172a;
+}
+
+.kiosk-calc-row .val-num.spend {
+  color: #dc2626;
+}
+
+.kiosk-calc-row .val-num.remain {
+  color: #059669;
+  font-size: 1.25rem;
+}
+
+.kiosk-shortage-alert {
+  background: #fee2e2;
+  border: 1.5px solid #fca5a5;
+  color: #991b1b;
+  padding: 0.65rem 0.8rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: center;
+  margin-top: 0.6rem;
+  display: none;
+}
+
+/* 결제 버튼 */
+.kiosk-checkout-btn {
+  width: 100%;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: white;
+  border: none;
+  font-size: 1.15rem;
+  font-weight: 900;
+  padding: 0.95rem;
+  border-radius: var(--kiosk-pill);
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.35);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.kiosk-checkout-btn:hover {
+  background: linear-gradient(135deg, #1d4ed8, #1e40af);
+  transform: translateY(-2px);
+}
+
+.kiosk-checkout-btn:active {
+  transform: scale(0.97);
+}
+
+.kiosk-checkout-btn:disabled {
+  background: #cbd5e1;
+  color: #94a3b8;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+/* 5. 어린이 맞춤형 대형 터치 숫자 키패드 모달 (PIN Pad) */
+.pin-pad-display {
+  display: flex;
+  justify-content: center;
+  gap: 0.9rem;
+  margin: 1.2rem 0;
+}
+
+.pin-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid #cbd5e1;
+  background: #f8fafc;
+  transition: all 0.2s ease;
+}
+
+.pin-dot.filled {
+  background: #2563eb;
+  border-color: #1e40af;
+  box-shadow: 0 0 10px rgba(37, 99, 235, 0.5);
+  transform: scale(1.15);
+}
+
+.pin-keypad-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.65rem;
+  max-width: 320px;
+  margin: 0 auto;
+}
+
+.keypad-num-btn {
+  height: 58px;
+  background: #ffffff;
+  border: 2px solid #e2e8f0;
+  border-radius: 16px;
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: #1e293b;
+  cursor: pointer;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.keypad-num-btn:active {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  transform: scale(0.93);
+}
+
+.keypad-num-btn.fn {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #64748b;
+  background: #f8fafc;
 }

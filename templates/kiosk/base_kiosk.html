@@ -41,14 +41,15 @@
   {% block head %}{% endblock %}
 </head>
 <body style="background: #f1f5f9;">
-  <!-- 매점 키오스크 전용 단독 상단 바 (타 메뉴 일체 미노출) -->
-  <header class="kiosk-navbar">
-    <a href="/kiosk" class="kiosk-brand">
-      <span>🛒 율전중앙교회</span>
-      <span class="kiosk-badge">매점 키오스크</span>
+  <!-- 매점 키오스크 전용 단독 상단 바 (어린이 눈높이 테마) -->
+  <header class="kiosk-navbar" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); padding: 0.8rem 1.4rem;">
+    <a href="/kiosk" class="kiosk-brand" style="display: flex; align-items: center; gap: 0.5rem;">
+      <span style="font-size: 1.5rem;">🎈</span>
+      <span>율전중앙 달란트 마켓</span>
+      <span class="kiosk-badge" style="background: #fef08a; color: #854d0e; font-weight: 900; border-radius: 9999px; padding: 0.2rem 0.6rem;">🛒 매점</span>
     </a>
-    <div style="font-size: 0.9rem; opacity: 0.9; font-weight: 600;">
-      교회학교 달란트 마켓
+    <div style="font-size: 0.95rem; color: #fef08a; font-weight: 800; display: flex; align-items: center; gap: 0.4rem;">
+      <span>✨ 신나는 간식 세상!</span>
     </div>
   </header>
 

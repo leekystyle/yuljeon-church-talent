@@ -4,379 +4,526 @@
 
 {% block content %}
 {% if is_admin_preview %}
-<div style="background: #eff6ff; border: 1.5px solid #3b82f6; border-radius: 8px; padding: 0.9rem 1.2rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.8rem; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);">
-  <div style="display: flex; align-items: center; gap: 0.6rem; color: #1e40af; font-size: 0.95rem;">
-    <span style="font-size: 1.2rem;">🔍</span>
-    <span><strong>[관리자 미리보기 모드]</strong> 현재 <strong>{{ student.name }}</strong> 학생 화면의 실제 대시보드를 열람 중입니다.</span>
+<div style="background: #eff6ff; border: 1.5px solid #3b82f6; border-radius: var(--kid-radius-md); padding: 0.85rem 1.1rem; margin-bottom: 1.2rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.8rem; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);">
+  <div style="display: flex; align-items: center; gap: 0.6rem; color: #1e40af; font-size: 0.9rem;">
+    <span style="font-size: 1.3rem;">🔍</span>
+    <span><strong>[선생님 미리보기]</strong> <strong>{{ student.name }}</strong> 학생의 실제 포털 화면입니다.</span>
   </div>
-  <button type="button" onclick="window.close()" class="btn btn-sm btn-outline" style="background: white; border-color: #3b82f6; color: #1e40af; font-weight: 700;">✕ 미리보기 창 닫기</button>
+  <button type="button" onclick="window.close()" class="btn btn-sm btn-outline" style="background: white; border-color: #3b82f6; color: #1e40af; font-weight: 800; border-radius: 9999px;">✕ 닫기</button>
 </div>
 {% endif %}
 
 {% if request.query_params.get('msg') == 'password_changed' %}
-<div class="alert alert-success" style="margin-bottom: 1.5rem;">
-  🎉 비밀번호가 안전하게 변경되었습니다! 앞으로 이 비밀번호로 로그인해 주세요.
+<div class="alert alert-success" style="border-radius: var(--kid-radius-md); margin-bottom: 1.2rem; font-weight: 700;">
+  🎉 비밀번호가 안전하게 변경되었어요! 다음부터 이 번호로 로그인해 주세요.
 </div>
 {% endif %}
 
-<!-- 학생 상단 프로필 헤더 카드 -->
-<div class="card" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 2rem; margin-bottom: 1.5rem;">
-  <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1.5rem;">
-    <div style="display: flex; align-items: center; gap: 1.2rem;">
-      <img src="{{ student.photo_url or '/static/uploads/profiles/default_avatar.svg' }}" alt="{{ student.name }}" style="width: 80px; height: 80px; border-radius: 50%; border: 3px solid #fef08a; background: white; object-fit: cover;">
+<!-- ======================================================== -->
+<!-- 1. 지갑 히어로 카드 (내 달란트 저금통) -->
+<!-- ======================================================== -->
+<div class="talent-hero-card" id="my-wallet-section">
+  <!-- 프로필 상단 행 -->
+  <div class="hero-profile-row">
+    <div class="hero-profile-info">
+      <img src="{{ student.photo_url or '/static/uploads/profiles/default_avatar.svg' }}" alt="{{ student.name }}" class="hero-avatar">
       <div>
-        <span class="badge badge-warning" style="margin-bottom: 0.3rem;">{{ student.department or '교회학교' }}</span>
-        <h1 style="font-size: 1.8rem; font-weight: 800;">{{ student.name }} 학생</h1>
-        <p style="opacity: 0.9; font-size: 0.9rem;">고유 ID: <strong>{{ student.student_code }}</strong></p>
+        <div class="hero-greeting">반가워요, 멋진 친구! 🌟</div>
+        <div class="hero-name">
+          <span>{{ student.name }}</span>
+          <span class="hero-dept-badge">{{ student.department or '교회학교' }}</span>
+        </div>
       </div>
     </div>
-    <div style="display: flex; gap: 0.6rem; flex-wrap: wrap;">
-      {% if is_admin_preview %}
-      <a href="/student/rules" class="btn btn-accent">🛍️ 기준/물품 열람</a>
-      <button type="button" onclick="window.close()" class="btn btn-outline" style="background: rgba(255,255,255,0.15); color: white; border-color: rgba(255,255,255,0.3);">창 닫기</button>
-      {% else %}
-      <a href="/student/change_password" class="btn btn-outline" style="background: rgba(255,255,255,0.15); color: white; border-color: rgba(255,255,255,0.3);">🔐 비밀번호 변경</a>
-      <a href="/student/rules" class="btn btn-accent">🛍️ 매점 품목 열람</a>
-      <a href="/auth/student/logout" class="btn btn-outline" style="background: rgba(255,255,255,0.15); color: white; border-color: rgba(255,255,255,0.3);">로그아웃</a>
-      {% endif %}
-    </div>
-  </div>
-</div>
-
-<!-- 3대 달란트 요약 카드 (요구사항 5) -->
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.2rem; margin-bottom: 2rem;">
-  <!-- 현재 보유 잔여 달란트 -->
-  <div class="card" style="border-left: 5px solid #f59e0b; padding: 1.5rem;">
-    <div style="font-size: 0.9rem; color: var(--text-muted); font-weight: 600;">🪙 현재 보유 잔여 달란트</div>
-    <div style="font-size: 2.3rem; font-weight: 800; color: #d97706; margin-top: 0.3rem;">
-      {{ student.current_talent }} <span style="font-size: 1.2rem; font-weight: 600;">달란트</span>
-    </div>
-  </div>
-
-  <!-- 총 획득 달란트 -->
-  <div class="card" style="border-left: 5px solid #10b981; padding: 1.5rem;">
-    <div style="font-size: 0.9rem; color: var(--text-muted); font-weight: 600;">📈 그동안 획득한 달란트 총액</div>
-    <div style="font-size: 2.3rem; font-weight: 800; color: #059669; margin-top: 0.3rem;">
-      {{ student.total_earned }} <span style="font-size: 1.2rem; font-weight: 600;">달란트</span>
-    </div>
-  </div>
-
-  <!-- 총 사용한 달란트 -->
-  <div class="card" style="border-left: 5px solid #ef4444; padding: 1.5rem;">
-    <div style="font-size: 0.9rem; color: var(--text-muted); font-weight: 600;">🛍️ 그동안 사용한 달란트 총액</div>
-    <div style="font-size: 2.3rem; font-weight: 800; color: #dc2626; margin-top: 0.3rem;">
-      {{ student.total_spent }} <span style="font-size: 1.2rem; font-weight: 600;">달란트</span>
-    </div>
-  </div>
-</div>
-
-<!-- 최근 내역 그리드 -->
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
-  <!-- 최근 적립 내역 -->
-  <div class="card">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-      <h3 style="font-size: 1.15rem; font-weight: 700; color: #1e293b;">최근 달란트 적립</h3>
-      <a href="/student/history" style="font-size: 0.85rem; color: var(--primary); text-decoration: none; font-weight: 600;">전체보기 ➔</a>
-    </div>
-    {% if recent_earnings %}
-    <div class="table-responsive">
-      <table class="styled-table">
-        <thead>
-          <tr>
-            <th>일자</th>
-            <th>지급 사유</th>
-            <th>달란트</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for e in recent_earnings %}
-          <tr>
-            <td>{{ e.created_at.strftime('%m-%d %H:%M') if e.created_at else '' }}</td>
-            <td>{{ e.reason }}</td>
-            <td style="color: #059669; font-weight: 700;">+{{ e.points }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% else %}
-    <p style="color: var(--text-muted); text-align: center; padding: 1.5rem 0;">아직 적립된 달란트 내역이 없습니다.</p>
+    {% if not is_admin_preview %}
+    <a href="/student/change_password" class="quick-btn" style="padding: 0.4rem 0.75rem; font-size: 0.78rem; background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.4);" title="비밀번호 변경">
+      🔐 비번변경
+    </a>
     {% endif %}
   </div>
 
-  <!-- 최근 사용 내역 -->
-  <div class="card">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-      <h3 style="font-size: 1.15rem; font-weight: 700; color: #1e293b;">최근 매점 사용</h3>
-      <a href="/student/history" style="font-size: 0.85rem; color: var(--primary); text-decoration: none; font-weight: 600;">전체보기 ➔</a>
+  <!-- 중앙 대형 달란트 잔고 표시 -->
+  <div class="hero-balance-box">
+    <div class="hero-balance-label">
+      <span>🪙</span>
+      <span>지금 쓸 수 있는 내 달란트</span>
     </div>
+    <div class="hero-balance-val">
+      <span>{{ student.current_talent }}</span>
+      <span class="unit">달란트</span>
+    </div>
+  </div>
+
+  <!-- 2컬럼 컴팩트 서브 통계 (총적립/총사용) -->
+  <div class="hero-substats">
+    <div class="substat-card">
+      <span class="substat-label">🌱 열심히 모은 달란트</span>
+      <span class="substat-val earned">+{{ student.total_earned }} <small style="font-size: 0.8rem; font-weight: 600;">달란트</small></span>
+    </div>
+    <div class="substat-card">
+      <span class="substat-label">🍪 매점에서 쓴 달란트</span>
+      <span class="substat-val spent">-{{ student.total_spent }} <small style="font-size: 0.8rem; font-weight: 600;">달란트</small></span>
+    </div>
+  </div>
+
+  <!-- 바로가기 퀵 바 -->
+  <div class="hero-quick-actions">
+    <a href="/student/rules" class="quick-btn accent">
+      <span>🛍️</span>
+      <span>매점 간식 구경하기</span>
+    </a>
+    <a href="/student/rules#rules-section" class="quick-btn">
+      <span>📜</span>
+      <span>달란트 더 모으는 비법</span>
+    </a>
+    <a href="/student/history" class="quick-btn">
+      <span>📊</span>
+      <span>전체 내역 장부</span>
+    </a>
+  </div>
+</div>
+
+<!-- ======================================================== -->
+<!-- 2. 모바일 세그먼트 탭 내비게이터 (세로 스크롤 압축 UI) -->
+<!-- ======================================================== -->
+<div class="student-tab-nav" id="main-tab-nav">
+  <button type="button" class="tab-nav-btn active" id="tab-btn-activity" onclick="switchMainTab('activity')">
+    <span>📜 활동 내역</span>
+  </button>
+  <button type="button" class="tab-nav-btn" id="tab-btn-talk" onclick="switchMainTab('talk')">
+    <span>💬 달란트 톡톡</span>
+    <span class="tab-badge">{{ talks | length }}</span>
+  </button>
+</div>
+
+<!-- ======================================================== -->
+<!-- 3. 패널 1: 내 활동 내역 피드 (적립 / 매점 이용 / 반품 내역) -->
+<!-- ======================================================== -->
+<div id="panel-activity" class="tab-content-panel active">
+  <!-- 필터 칩 바 -->
+  <div class="activity-filter-bar">
+    <button type="button" class="filter-chip active" onclick="filterActivity('all', this)">전체보기 🌈</button>
+    <button type="button" class="filter-chip" onclick="filterActivity('earn', this)">달란트 적립 🪙</button>
+    <button type="button" class="filter-chip" onclick="filterActivity('spent', this)">매점 사용 🛍️</button>
+    {% if recent_adjustments %}
+    <button type="button" class="filter-chip" onclick="filterActivity('adjust', this)">수정/반품 🔄</button>
+    {% endif %}
+  </div>
+
+  <!-- 모바일 카드형 활동 내역 리스트 -->
+  <div class="activity-feed-list" id="activity-feed-container">
+    <!-- 1. 달란트 적립 내역들 -->
+    {% if recent_earnings %}
+      {% for e in recent_earnings %}
+      <div class="activity-card-item item-earn">
+        <div class="activity-card-left">
+          <div class="activity-icon-bubble earn">🪙</div>
+          <div>
+            <div class="activity-title">{{ e.reason }}</div>
+            <div class="activity-meta">
+              <span>🗓️ {{ e.created_at.strftime('%m월 %d일 %H:%M') if e.created_at else '' }}</span>
+              {% if e.granted_by %}
+              <span>• 👤 {{ e.granted_by }} 선생님</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="activity-badge-right">
+          <div class="activity-points positive">+{{ e.points }}</div>
+          <div style="font-size: 0.72rem; color: #059669; font-weight: 700;">적립 완료</div>
+        </div>
+      </div>
+      {% endfor %}
+    {% endif %}
+
+    <!-- 2. 매점 결제 내역들 -->
     {% if recent_orders %}
-    <div class="table-responsive">
-      <table class="styled-table">
-        <thead>
-          <tr>
-            <th>구매 일시</th>
-            <th>구매 품목</th>
-            <th>차감 달란트</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for o in recent_orders %}
-          <tr>
-            <td>{{ o.created_at.strftime('%m-%d %H:%M') if o.created_at else '' }}</td>
-            <td>
+      {% for o in recent_orders %}
+      <div class="activity-card-item item-spent">
+        <div class="activity-card-left">
+          <div class="activity-icon-bubble spent">🛍️</div>
+          <div>
+            <div class="activity-title">
               {% for it in o.items %}
               {{ it.item_name }} ({{ it.quantity }}개){% if not loop.last %}, {% endif %}
               {% endfor %}
-            </td>
-            <td style="color: #dc2626; font-weight: 700;">-{{ o.total_points }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+            </div>
+            <div class="activity-meta">
+              <span>🛒 주문 #{{ o.order_number }}</span>
+              <span>• {{ o.created_at.strftime('%m월 %d일 %H:%M') if o.created_at else '' }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="activity-badge-right">
+          <div class="activity-points negative">-{{ o.total_points }}</div>
+          <div style="font-size: 0.72rem; color: #dc2626; font-weight: 700;">매점 구매</div>
+        </div>
+      </div>
+      {% endfor %}
+    {% endif %}
+
+    <!-- 3. 구매내역 수정 및 반품/환불 내역들 -->
+    {% if recent_adjustments %}
+      {% for a in recent_adjustments %}
+      <div class="activity-card-item item-adjust" style="border-left: 4px solid #3b82f6;">
+        <div class="activity-card-left">
+          <div class="activity-icon-bubble adjust">🔄</div>
+          <div>
+            <div class="activity-title">
+              {% if a.action_type == 'REFUND' %}
+              [전액 반품/환불] 주문 #{{ a.order_number }}
+              {% else %}
+              [구매내역 수정] 주문 #{{ a.order_number }}
+              {% endif %}
+            </div>
+            <div class="activity-meta">
+              <span>{{ a.details or a.change_summary or '수량 및 품목 변경' }}</span>
+              <span>• 👤 {{ a.admin_name }} 선생님</span>
+              <span>• {{ a.adjusted_at.strftime('%m월 %d일') if a.adjusted_at else '' }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="activity-badge-right">
+          {% if a.diff_points > 0 %}
+          <div class="activity-points positive">+{{ a.diff_points }}</div>
+          <div style="font-size: 0.72rem; color: #059669; font-weight: 800;">달란트 환불</div>
+          {% elif a.diff_points < 0 %}
+          <div class="activity-points negative">{{ a.diff_points }}</div>
+          <div style="font-size: 0.72rem; color: #dc2626; font-weight: 800;">추가 차감</div>
+          {% else %}
+          <div class="activity-points adjust">0</div>
+          <div style="font-size: 0.72rem; color: #64748b; font-weight: 600;">변동 없음</div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    {% endif %}
+
+    <!-- 내역이 전혀 없는 경우의 귀여운 안내 -->
+    {% if not recent_earnings and not recent_orders and not recent_adjustments %}
+    <div style="text-align: center; padding: 2.5rem 1rem; background: white; border-radius: var(--kid-radius-md); border: 1.5px dashed #cbd5e1;">
+      <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🌱</div>
+      <h4 style="font-size: 1.1rem; font-weight: 800; color: #1e293b; margin-bottom: 0.3rem;">아직 활동 내역이 없어요</h4>
+      <p style="font-size: 0.88rem; color: #64748b; margin-bottom: 1rem;">
+        이번 주일 예배에 참석하고 말씀을 씩씩하게 외우면<br>선생님이 달란트를 선물해 주실 거예요!
+      </p>
+      <a href="/student/rules" class="btn btn-sm btn-primary" style="border-radius: 9999px;">
+        📜 달란트 받는 법 알아보기 ➔
+      </a>
     </div>
-    {% else %}
-    <p style="color: var(--text-muted); text-align: center; padding: 1.5rem 0;">아직 매점에서 사용한 내역이 없습니다.</p>
     {% endif %}
   </div>
-</div>
 
-{% if recent_adjustments %}
-<!-- 최근 구매 수정 및 반품/환불 안내 카드 -->
-<div class="card" style="margin-top: 1.5rem; border-left: 4px solid #3b82f6; background: #f8faff;">
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-    <h3 style="font-size: 1.1rem; font-weight: 700; color: #1e3a8a; display: flex; align-items: center; gap: 6px;">
-      🔄 최근 매점 구매내역 수정 및 반품/환불 내역
-    </h3>
-    <a href="/student/history" style="font-size: 0.85rem; color: #2563eb; text-decoration: none; font-weight: 600;">상세보기 ➔</a>
-  </div>
-  <div class="table-responsive">
-    <table class="styled-table" style="background: white;">
-      <thead>
-        <tr>
-          <th>일시</th>
-          <th>주문번호</th>
-          <th>처리 구분</th>
-          <th>변경 내용</th>
-          <th>반영 달란트</th>
-          <th>처리 담당자</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for a in recent_adjustments %}
-        <tr>
-          <td>{{ a.adjusted_at.strftime('%m-%d %H:%M') if a.adjusted_at else '' }}</td>
-          <td><code style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem;">#{{ a.order_id }}</code></td>
-          <td>
-            {% if a.action_type == 'REFUND' %}
-            <span style="background: #fee2e2; color: #b91c1c; font-weight: 700; padding: 3px 8px; border-radius: 4px; font-size: 0.8rem;">전액 반품/환불</span>
-            {% else %}
-            <span style="background: #e0e7ff; color: #4338ca; font-weight: 700; padding: 3px 8px; border-radius: 4px; font-size: 0.8rem;">내역 수정</span>
-            {% endif %}
-          </td>
-          <td style="font-size: 0.85rem; color: #475569;">{{ a.change_summary }}</td>
-          <td>
-            {% if a.diff_points > 0 %}
-            <span style="color: #059669; font-weight: 800; font-size: 0.95rem;">+{{ a.diff_points }} (환불)</span>
-            {% elif a.diff_points < 0 %}
-            <span style="color: #dc2626; font-weight: 800; font-size: 0.95rem;">{{ a.diff_points }} (추가차감)</span>
-            {% else %}
-            <span style="color: #64748b; font-weight: 600;">0 (금액변동없음)</span>
-            {% endif %}
-          </td>
-          <td style="font-size: 0.85rem; font-weight: 600; color: #1e293b;">
-            <span style="background: #f1f5f9; padding: 3px 8px; border-radius: 12px; border: 1px solid #cbd5e1;">👤 {{ a.admin_name }} 선생님</span>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <!-- 전체보기 링크 버튼 -->
+  <div style="margin-top: 1.2rem; text-align: center;">
+    <a href="/student/history" class="btn btn-outline" style="width: 100%; max-width: 320px; border-radius: 9999px; background: white; font-weight: 700; color: #2563eb; border-color: #bfdbfe;">
+      📊 나의 전체 활동 장부 자세히 보기 ➔
+    </a>
   </div>
 </div>
-  </div>
-</div>
-{% endif %}
 
 <!-- ======================================================== -->
-<!-- 💬 달란트 톡톡 (Talent Tok) 한줄 소통 공간 -->
+<!-- 4. 패널 2: 달란트 톡톡 소통 공간 (모바일 채팅 버블형) -->
 <!-- ======================================================== -->
-<div id="talent-tok-section" class="card" style="margin-top: 1.8rem; border-top: 4px solid #10b981; background: #ffffff;">
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
-    <div>
-      <h3 style="font-size: 1.25rem; font-weight: 800; color: #065f46; display: flex; align-items: center; gap: 6px; margin: 0 0 0.2rem 0;">
-        💬 달란트 톡톡 (Talent Tok)
-      </h3>
-      <p style="color: #64748b; font-size: 0.88rem; margin: 0;">
-        교회학교 친구들과 감사의 마음과 응원의 한마디를 나누어 보아요! (최대 100자)
-      </p>
-    </div>
-    <span class="badge" style="background: #ecfdf5; color: #047857; font-weight: 700; border: 1px solid #a7f3d0; padding: 4px 10px; font-size: 0.82rem;">
-      실시간 이야기 {{ talks | length }}개
-    </span>
-  </div>
-
+<div id="panel-talk" class="tab-content-panel">
+  <!-- 피드백 알림 배너 -->
   {% if request.query_params.get('talk_msg') == 'created' %}
-  <div class="alert alert-success" style="padding: 0.6rem 1rem; font-size: 0.88rem; margin-bottom: 1rem;">
+  <div class="alert alert-success" style="border-radius: var(--kid-radius-md); margin-bottom: 1rem; font-weight: 700;">
     🎉 달란트 톡톡에 한마디를 남겼어요!
   </div>
   {% elif request.query_params.get('talk_msg') == 'updated' %}
-  <div class="alert alert-success" style="padding: 0.6rem 1rem; font-size: 0.88rem; margin-bottom: 1rem;">
-    ✏️ 내 글이 수정되었어요!
+  <div class="alert alert-success" style="border-radius: var(--kid-radius-md); margin-bottom: 1rem; font-weight: 700;">
+    ✏️ 내 글이 예쁘게 수정되었어요!
   </div>
   {% elif request.query_params.get('talk_msg') == 'deleted' %}
-  <div class="alert alert-success" style="padding: 0.6rem 1rem; font-size: 0.88rem; margin-bottom: 1rem;">
-    🗑️ 내 글이 삭제되었어요.
+  <div class="alert alert-success" style="border-radius: var(--kid-radius-md); margin-bottom: 1rem; font-weight: 700;">
+    🗑️ 내 글이 안전하게 삭제되었어요.
   </div>
   {% elif request.query_params.get('talk_error') == 'empty' %}
-  <div class="alert alert-danger" style="padding: 0.6rem 1rem; font-size: 0.88rem; margin-bottom: 1rem;">
-    ⚠️ 남길 글 내용을 입력해 주세요. (최대 100자)
+  <div class="alert alert-danger" style="border-radius: var(--kid-radius-md); margin-bottom: 1rem; font-weight: 700;">
+    ⚠️ 남길 글 내용을 적어주세요! (최대 100자)
   </div>
   {% endif %}
 
-  <!-- 1. 새 글 작성 폼 -->
+  <!-- 톡톡 새 글 작성 카드 -->
   {% if not is_admin_preview %}
-  <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 1rem 1.2rem; margin-bottom: 1.5rem;">
+  <div class="tok-write-card">
+    <div class="tok-write-header">
+      <div class="tok-write-author">
+        <img src="{{ student.photo_url or '/static/uploads/profiles/default_avatar.svg' }}" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1.5px solid #10b981;">
+        <span>{{ student.name }} 친구의 한마디 ✨</span>
+      </div>
+      <span style="font-size: 0.75rem; color: #047857; font-weight: 700; background: #ecfdf5; padding: 0.15rem 0.5rem; border-radius: 9999px;">
+        최대 100자
+      </span>
+    </div>
+
     <form action="/student/talks/create" method="POST">
-      <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem;">
-        <img src="{{ student.photo_url or '/static/uploads/profiles/default_avatar.svg' }}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1.5px solid #10b981;">
-        <span style="font-weight: 700; color: #1e293b; font-size: 0.92rem;">{{ student.name }}</span>
-        <span style="font-size: 0.8rem; color: #64748b;">({{ student.department or '교회학교' }})</span>
+      <textarea name="content" id="talk-create-input" rows="2" maxlength="100" class="tok-input-box" placeholder="친구들과 선생님께 감사 인사나 재미있는 소감을 남겨보아요! (100자 이내)" required oninput="updateCreateCount(this.value)"></textarea>
+
+      <!-- 어린이 간편 이모지 바 -->
+      <div class="tok-emoji-bar">
+        <span style="font-size: 0.72rem; color: #64748b; font-weight: 600; margin-right: 0.2rem;">톡톡 이모지:</span>
+        <button type="button" class="emoji-btn" onclick="insertEmoji('❤️')">❤️</button>
+        <button type="button" class="emoji-btn" onclick="insertEmoji('🎉')">🎉</button>
+        <button type="button" class="emoji-btn" onclick="insertEmoji('🙏')">🙏</button>
+        <button type="button" class="emoji-btn" onclick="insertEmoji('✨')">✨</button>
+        <button type="button" class="emoji-btn" onclick="insertEmoji('🍪')">🍪</button>
+        <button type="button" class="emoji-btn" onclick="insertEmoji('👍')">👍</button>
       </div>
 
-      <div style="position: relative;">
-        <textarea name="content" id="talk-create-input" rows="2" maxlength="100" class="form-control" placeholder="친구들과 선생님께 감사 인사나 응원의 한마디를 적어보세요! (최대 100자)" required style="resize: none; font-size: 0.92rem; padding: 0.6rem 0.8rem;" oninput="updateCreateCount(this.value)"></textarea>
-      </div>
-
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem;">
-        <span id="talk-create-counter" style="font-size: 0.8rem; color: #64748b;">0 / 100자</span>
-        <button type="submit" class="btn btn-sm btn-primary" style="background: #059669; border-color: #059669; font-weight: 700; padding: 0.4rem 1.1rem;">
-          톡톡 남기기 🚀
+      <div class="tok-write-footer">
+        <span id="create-char-counter" class="tok-char-counter">0 / 100자</span>
+        <button type="submit" class="tok-submit-btn">
+          <span>톡톡 등록</span>
+          <span>🚀</span>
         </button>
       </div>
     </form>
   </div>
   {% endif %}
 
-  <!-- 2. 달란트 톡톡 글 목록 -->
-  <div style="display: flex; flex-direction: column; gap: 0.9rem;">
-    {% for t in talks %}
-    <div id="talk-card-{{ t.id }}" style="border-radius: 10px; padding: 0.9rem 1.1rem; {% if t.is_deleted %}background: #f8fafc; border: 1px dashed #cbd5e1;{% else %}background: #f0fdf4; border: 1px solid #dcfce7;{% endif %}">
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.4rem;">
-        <div style="display: flex; align-items: center; gap: 0.6rem;">
-          <img src="{{ t.student.photo_url or '/static/uploads/profiles/default_avatar.svg' }}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1.5px solid {% if t.is_deleted %}#94a3b8{% else %}#10b981{% endif %};">
-          <div>
-            <span style="font-weight: 700; color: #1e293b; font-size: 0.9rem;">{{ t.student.name }}</span>
-            <span style="font-size: 0.78rem; color: #64748b; margin-left: 4px;">{{ t.student.department or '교회학교' }}</span>
+  <!-- 톡톡 피드 리스트 -->
+  <div class="tok-feed-list">
+    {% if talks %}
+      {% for t in talks %}
+      <div class="tok-card {% if t.student_id == student.id and not t.is_deleted %}my-post{% endif %} {% if t.is_deleted %}deleted-post{% endif %}" id="talk-card-{{ t.id }}">
+        <div class="tok-card-header">
+          <div class="tok-user-info">
+            <img src="{{ t.student.photo_url or '/static/uploads/profiles/default_avatar.svg' }}" class="tok-avatar">
+            <div class="tok-user-meta">
+              <div class="tok-user-name">
+                <span>{{ t.student.name }}</span>
+                <span style="font-size: 0.75rem; color: #64748b; font-weight: normal;">({{ t.student.department or '교회학교' }})</span>
+                {% if t.student_id == student.id and not t.is_deleted %}
+                <span class="tok-my-badge">내가 쓴 글</span>
+                {% endif %}
+              </div>
+              <span class="tok-time">{{ t.created_at.strftime('%m월 %d일 %H:%M') if t.created_at else '' }}</span>
+            </div>
           </div>
-        </div>
-        
-        <div style="display: flex; align-items: center; gap: 0.5rem;">
-          <span style="font-size: 0.78rem; color: #94a3b8;">
-            {{ t.created_at.strftime('%m-%d %H:%M') if t.created_at else '' }}
-          </span>
 
-          {% if not t.is_deleted and t.student_id == student.id and not is_admin_preview %}
-          <!-- 내가 쓴 글인 경우 수정/삭제 버튼 -->
-          <div style="display: flex; gap: 0.25rem;">
-            <button type="button" onclick="showEditForm({{ t.id }})" class="btn btn-sm btn-outline" style="padding: 2px 7px; font-size: 0.75rem; color: #2563eb; border-color: #93c5fd;">
-              ✏️ 수정
-            </button>
-            <form action="/student/talks/{{ t.id }}/delete" method="POST" style="display: inline;" onsubmit="return confirm('내가 쓴 이 글을 삭제할까요?');">
-              <button type="submit" class="btn btn-sm btn-outline" style="padding: 2px 7px; font-size: 0.75rem; color: #dc2626; border-color: #fca5a5;">
-                🗑️ 삭제
-              </button>
-            </form>
+          <!-- 본인 글인 경우 수정/삭제 버튼 -->
+          {% if t.student_id == student.id and not t.is_deleted and not is_admin_preview %}
+          <div class="tok-actions">
+            <button type="button" class="tok-action-btn" onclick="toggleEditTalk({{ t.id }})" title="글 수정하기">✏️ 수정</button>
+            <button type="button" class="tok-action-btn delete" onclick="confirmDeleteTalk({{ t.id }})" title="글 삭제하기">🗑️ 삭제</button>
           </div>
           {% endif %}
         </div>
-      </div>
 
-      <!-- 본문 내용 -->
-      {% if t.is_deleted %}
-      <div style="color: #94a3b8; font-size: 0.88rem; font-style: italic; padding: 0.3rem 0; display: flex; align-items: center; gap: 6px;">
-        <span>🚫</span>
-        <span>[관리자 <strong>{{ t.deleted_by or '관리자' }}</strong> 선생님에 의해 삭제된 글입니다.]</span>
-      </div>
-      {% else %}
-      <div id="talk-display-{{ t.id }}" style="font-size: 0.94rem; color: #1e293b; line-height: 1.5; word-break: break-all; padding: 0.2rem 0;">
-        {{ t.content }}
-      </div>
+        <!-- 글 본문 또는 관리자 삭제 안내 배너 -->
+        {% if t.is_deleted %}
+        <div class="tok-deleted-banner">
+          <span>🚫</span>
+          <span><strong>[관리자 {{ t.deleted_by or '선생님' }}에 의해 삭제된 글입니다]</strong></span>
+        </div>
+        {% else %}
+        <!-- 일반 내용 표시 -->
+        <div id="talk-display-{{ t.id }}" class="tok-body">{{ t.content }}</div>
 
-      <!-- 본인 글 인라인 수정 폼 (초기 숨김) -->
-      {% if t.student_id == student.id and not is_admin_preview %}
-      <div id="talk-edit-form-{{ t.id }}" style="display: none; margin-top: 0.6rem; background: white; padding: 0.8rem; border-radius: 8px; border: 1px solid #93c5fd;">
-        <form action="/student/talks/{{ t.id }}/update" method="POST">
-          <textarea name="content" id="talk-edit-input-{{ t.id }}" rows="2" maxlength="100" class="form-control" style="resize: none; font-size: 0.9rem;" oninput="updateEditCount({{ t.id }}, this.value)" required>{{ t.content }}</textarea>
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.4rem;">
-            <span id="talk-edit-counter-{{ t.id }}" style="font-size: 0.78rem; color: #64748b;">{{ t.content | length }} / 100자</span>
-            <div style="display: flex; gap: 0.3rem;">
-              <button type="button" onclick="hideEditForm({{ t.id }})" class="btn btn-sm btn-outline" style="padding: 2px 8px; font-size: 0.78rem;">취소</button>
-              <button type="submit" class="btn btn-sm btn-primary" style="padding: 2px 10px; font-size: 0.78rem; font-weight: 700;">수정 완료</button>
+        <!-- 본인 인라인 수정 폼 (초기 숨김) -->
+        {% if t.student_id == student.id and not is_admin_preview %}
+        <div id="talk-edit-form-{{ t.id }}" style="display: none; margin-top: 0.7rem; background: #ffffff; border: 1.5px solid #3b82f6; border-radius: var(--kid-radius-md); padding: 0.8rem;">
+          <form action="/student/talks/{{ t.id }}/update" method="POST">
+            <textarea name="content" id="edit-input-{{ t.id }}" rows="2" maxlength="100" class="tok-input-box" required oninput="updateEditCount({{ t.id }}, this.value)">{{ t.content }}</textarea>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem;">
+              <span id="edit-char-counter-{{ t.id }}" class="tok-char-counter">{{ t.content|length }} / 100자</span>
+              <div style="display: flex; gap: 0.4rem;">
+                <button type="button" class="btn btn-sm btn-outline" style="border-radius: 9999px;" onclick="toggleEditTalk({{ t.id }})">취소</button>
+                <button type="submit" class="btn btn-sm btn-primary" style="border-radius: 9999px; font-weight: 700;">수정 완료 ✨</button>
+              </div>
             </div>
-          </div>
-        </form>
+          </form>
+        </div>
+        {% endif %}
+        {% endif %}
       </div>
-      {% endif %}
-      {% endif %}
-    </div>
+      {% endfor %}
     {% else %}
-    <div style="text-align: center; color: #94a3b8; padding: 2rem 0; font-size: 0.9rem;">
-      아직 올라온 톡톡이 없어요! 첫 번째 따뜻한 한마디를 남겨볼까요? 💬
+    <div style="text-align: center; padding: 2.5rem 1rem; background: white; border-radius: var(--kid-radius-md); border: 1.5px dashed #cbd5e1;">
+      <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">💬</div>
+      <h4 style="font-size: 1.1rem; font-weight: 800; color: #1e293b; margin-bottom: 0.3rem;">아직 남겨진 이야기가 없어요</h4>
+      <p style="font-size: 0.88rem; color: #64748b;">
+        첫 번째로 친구들과 선생님께 반가운 한마디를 남겨볼까요? ✨
+      </p>
     </div>
-    {% endfor %}
+    {% endif %}
   </div>
 </div>
 
+<!-- 본인 글 삭제 확인 모달 -->
+<div id="delete-confirm-modal" class="modal-backdrop">
+  <div class="modal-content" style="border-radius: var(--kid-radius-lg); text-align: center; max-width: 360px;">
+    <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🗑️</div>
+    <h3 style="color: #1e293b; font-weight: 800; margin-bottom: 0.4rem;">내가 쓴 글을 삭제할까요?</h3>
+    <p style="color: #64748b; font-size: 0.88rem; margin-bottom: 1.2rem;">
+      삭제한 글은 다시 되돌릴 수 없어요!
+    </p>
+    <form id="delete-talk-form" method="POST" action="">
+      <div style="display: flex; gap: 0.6rem;">
+        <button type="button" class="btn btn-outline" style="flex: 1; border-radius: 9999px;" onclick="closeDeleteModal()">취소</button>
+        <button type="submit" class="btn btn-danger" style="flex: 1; border-radius: 9999px; font-weight: 800;">삭제하기</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ======================================================== -->
+<!-- 5. 모바일 플로팅 퀵 독 (하단 고정 바) -->
+<!-- ======================================================== -->
+<div class="mobile-bottom-dock">
+  <a href="#my-wallet-section" class="dock-item" onclick="window.scrollTo({top: 0, behavior: 'smooth'}); return false;">
+    <span class="dock-icon">🪙</span>
+    <span>내 지갑</span>
+  </a>
+  <a href="javascript:void(0)" class="dock-item" onclick="switchMainTab('activity')">
+    <span class="dock-icon">📜</span>
+    <span>활동 내역</span>
+  </a>
+  <a href="javascript:void(0)" class="dock-item" onclick="switchMainTab('talk')">
+    <span class="dock-icon">💬</span>
+    <span>달란트 톡톡</span>
+  </a>
+  <a href="/student/rules" class="dock-item">
+    <span class="dock-icon">🛍️</span>
+    <span>매점 구경</span>
+  </a>
+</div>
+{% endblock %}
+
+{% block scripts %}
 <script>
+  // 1. 메인 탭 전환 함수 (활동 내역 vs 달란트 톡톡)
+  function switchMainTab(tabName) {
+    const activityPanel = document.getElementById('panel-activity');
+    const talkPanel = document.getElementById('panel-talk');
+    const activityBtn = document.getElementById('tab-btn-activity');
+    const talkBtn = document.getElementById('tab-btn-talk');
+
+    if (tabName === 'activity') {
+      activityPanel.classList.add('active');
+      talkPanel.classList.remove('active');
+      activityBtn.classList.add('active');
+      talkBtn.classList.remove('active');
+    } else {
+      activityPanel.classList.remove('active');
+      talkPanel.classList.add('active');
+      activityBtn.classList.remove('active');
+      talkBtn.classList.add('active');
+    }
+
+    // 부드럽게 탭 위치로 스크롤
+    const tabNav = document.getElementById('main-tab-nav');
+    if (tabNav) {
+      tabNav.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }
+
+  // URL 파라미터에 talk_msg나 talk_error가 있으면 자동으로 톡톡 탭 열기
+  document.addEventListener("DOMContentLoaded", function() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('talk_msg') || params.has('talk_error')) {
+      switchMainTab('talk');
+    }
+  });
+
+  // 2. 활동 내역 필터링 (전체 / 적립 / 매점사용 / 반품)
+  function filterActivity(category, btnEl) {
+    const chips = document.querySelectorAll('.filter-chip');
+    chips.forEach(c => c.classList.remove('active'));
+    if (btnEl) btnEl.classList.add('active');
+
+    const earnItems = document.querySelectorAll('.activity-card-item.item-earn');
+    const spentItems = document.querySelectorAll('.activity-card-item.item-spent');
+    const adjustItems = document.querySelectorAll('.activity-card-item.item-adjust');
+
+    if (category === 'all') {
+      earnItems.forEach(el => el.style.display = 'flex');
+      spentItems.forEach(el => el.style.display = 'flex');
+      adjustItems.forEach(el => el.style.display = 'flex');
+    } else if (category === 'earn') {
+      earnItems.forEach(el => el.style.display = 'flex');
+      spentItems.forEach(el => el.style.display = 'none');
+      adjustItems.forEach(el => el.style.display = 'none');
+    } else if (category === 'spent') {
+      earnItems.forEach(el => el.style.display = 'none');
+      spentItems.forEach(el => el.style.display = 'flex');
+      adjustItems.forEach(el => el.style.display = 'none');
+    } else if (category === 'adjust') {
+      earnItems.forEach(el => el.style.display = 'none');
+      spentItems.forEach(el => el.style.display = 'none');
+      adjustItems.forEach(el => el.style.display = 'flex');
+    }
+  }
+
+  // 3. 달란트 톡톡 이모지 입력 헬퍼
+  function insertEmoji(emoji) {
+    const input = document.getElementById('talk-create-input');
+    if (!input) return;
+    if (input.value.length + emoji.length <= 100) {
+      input.value += emoji;
+      updateCreateCount(input.value);
+      input.focus();
+    }
+  }
+
+  // 4. 글자수 카운터
   function updateCreateCount(val) {
-    const len = (val || '').length;
-    const el = document.getElementById('talk-create-counter');
-    if (el) {
-      el.innerText = `${len} / 100자`;
-      if (len >= 100) {
-        el.style.color = '#dc2626';
-        el.style.fontWeight = 'bold';
-      } else {
-        el.style.color = '#64748b';
-        el.style.fontWeight = 'normal';
-      }
+    const counter = document.getElementById('create-char-counter');
+    if (!counter) return;
+    const len = val.length;
+    counter.innerText = `${len} / 100자`;
+    if (len >= 95) {
+      counter.style.color = '#dc2626';
+      counter.style.fontWeight = 'bold';
+    } else {
+      counter.style.color = '#64748b';
+      counter.style.fontWeight = '600';
     }
   }
 
-  function showEditForm(talkId) {
-    const editForm = document.getElementById(`talk-edit-form-${talkId}`);
-    const displayEl = document.getElementById(`talk-display-${talkId}`);
-    if (editForm && displayEl) {
-      editForm.style.display = 'block';
-      displayEl.style.display = 'none';
-      const input = document.getElementById(`talk-edit-input-${talkId}`);
+  function updateEditCount(id, val) {
+    const counter = document.getElementById(`edit-char-counter-${id}`);
+    if (!counter) return;
+    const len = val.length;
+    counter.innerText = `${len} / 100자`;
+    if (len >= 95) {
+      counter.style.color = '#dc2626';
+      counter.style.fontWeight = 'bold';
+    } else {
+      counter.style.color = '#64748b';
+      counter.style.fontWeight = '600';
+    }
+  }
+
+  // 5. 인라인 수정 폼 토글
+  function toggleEditTalk(id) {
+    const displayEl = document.getElementById(`talk-display-${id}`);
+    const formEl = document.getElementById(`talk-edit-form-${id}`);
+    if (!formEl) return;
+    if (formEl.style.display === 'none' || formEl.style.display === '') {
+      formEl.style.display = 'block';
+      if (displayEl) displayEl.style.display = 'none';
+      const input = document.getElementById(`edit-input-${id}`);
       if (input) input.focus();
+    } else {
+      formEl.style.display = 'none';
+      if (displayEl) displayEl.style.display = 'block';
     }
   }
 
-  function hideEditForm(talkId) {
-    const editForm = document.getElementById(`talk-edit-form-${talkId}`);
-    const displayEl = document.getElementById(`talk-display-${talkId}`);
-    if (editForm && displayEl) {
-      editForm.style.display = 'none';
-      displayEl.style.display = 'block';
-    }
+  // 6. 삭제 확인 모달
+  function confirmDeleteTalk(id) {
+    const form = document.getElementById('delete-talk-form');
+    form.action = `/student/talks/${id}/delete`;
+    const modal = document.getElementById('delete-confirm-modal');
+    modal.classList.add('show');
   }
 
-  function updateEditCount(talkId, val) {
-    const len = (val || '').length;
-    const el = document.getElementById(`talk-edit-counter-${talkId}`);
-    if (el) {
-      el.innerText = `${len} / 100자`;
-      if (len >= 100) {
-        el.style.color = '#dc2626';
-        el.style.fontWeight = 'bold';
-      } else {
-        el.style.color = '#64748b';
-        el.style.fontWeight = 'normal';
-      }
-    }
+  function closeDeleteModal() {
+    const modal = document.getElementById('delete-confirm-modal');
+    modal.classList.remove('show');
   }
 </script>
 {% endblock %}
-

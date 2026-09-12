@@ -1,211 +1,301 @@
 {% extends "kiosk/base_kiosk.html" %}
 
-{% block title %}매점 키오스크 - 율전중앙교회 달란트{% endblock %}
+{% block title %}매점 키오스크 - 율전중앙교회 달란트 마켓{% endblock %}
 
 {% block head %}
 <link rel="stylesheet" href="/static/css/kiosk.css">
 {% endblock %}
 
 {% block content %}
-<!-- 학생 상태 및 상단 헤더 카드 -->
+<!-- 1. 학생 상태 및 상단 헤더 카드 -->
 <div class="kiosk-header-card">
   {% if student %}
   <div class="kiosk-student-profile">
     <img src="{{ student.photo_url or '/static/uploads/profiles/default_avatar.svg' }}" alt="{{ student.name }}" class="kiosk-student-avatar">
     <div>
-      <div style="font-size: 0.85rem; opacity: 0.85;">{{ student.department or '교회학교' }} | ID: {{ student.student_code }}</div>
-      <h2 style="font-size: 1.5rem; font-weight: 800;">{{ student.name }} 학생</h2>
+      <div class="kiosk-student-name">
+        <span>{{ student.name }} 친구</span>
+        <span class="kiosk-student-badge">{{ student.department or '교회학교' }}</span>
+      </div>
+      <div style="font-size: 0.85rem; color: #bfdbfe; margin-top: 0.2rem;">
+        학생 ID: <strong>{{ student.student_code }}</strong>
+      </div>
     </div>
   </div>
-  <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
-    <div id="kiosk-timer-badge" style="background: rgba(220, 38, 38, 0.25); border: 1px solid rgba(254, 202, 202, 0.5); padding: 0.35rem 0.8rem; border-radius: 999px; font-weight: 700; font-size: 0.88rem; color: #fff; display: flex; align-items: center; gap: 0.35rem;">
-      <span>⏱️</span>
-      <span id="kiosk-countdown-sec" style="font-size: 1.15rem; color: #fef08a; font-weight: 800;">{{ kiosk_auto_logout_seconds or 10 }}</span>초 후 자동 로그아웃
+
+  <div class="kiosk-header-right">
+    <!-- 자동 로그아웃 카운트다운 타이머 -->
+    <div id="kiosk-timer-badge" class="kiosk-timer-badge">
+      <span>⏳</span>
+      <span><strong id="kiosk-countdown-sec" class="time-num">{{ kiosk_auto_logout_seconds or 10 }}</strong>초 후 마감</span>
     </div>
+
+    <!-- 보유 달란트 배지 -->
     <div class="kiosk-talent-badge">
-      <span>🪙 보유 달란트:</span>
+      <span>🪙</span>
+      <span>내 달란트:</span>
       <span id="current-talent-val">{{ student.current_talent }}</span>
     </div>
-    <a href="/kiosk/logout" class="btn btn-outline" style="background: rgba(255,255,255,0.2); color: white; border-color: rgba(255,255,255,0.4);">
-      로그아웃
+
+    <!-- 로그아웃 버튼 -->
+    <a href="/kiosk/logout" class="btn btn-outline" style="background: rgba(255,255,255,0.2); color: white; border-color: rgba(255,255,255,0.4); border-radius: 9999px; font-weight: 700; padding: 0.5rem 1rem;">
+      🚪 나가기
     </a>
   </div>
   {% else %}
   <div style="display: flex; align-items: center; gap: 1rem;">
-    <div style="font-size: 2.2rem;">🛒</div>
+    <div style="font-size: 2.8rem;">🛒</div>
     <div>
-      <h2 style="font-size: 1.35rem; font-weight: 800;">율전중앙 매점 키오스크</h2>
-      <p style="font-size: 0.9rem; opacity: 0.9;">구매를 시작하려면 먼저 학생 계정으로 로그인해 주세요.</p>
+      <h2 style="font-size: 1.45rem; font-weight: 900; margin-bottom: 0.2rem;">율전중앙 달란트 마켓에 온 것을 환영해요! 🎉</h2>
+      <p style="font-size: 0.92rem; opacity: 0.9; margin: 0;">맛있는 간식과 학용품을 고르기 전에 먼저 내 이름으로 로그인해 주세요.</p>
     </div>
   </div>
-  <button class="btn btn-accent btn-lg" onclick="openLoginModal()">
-    🔑 학생 로그인하기
+  <button class="btn btn-accent btn-lg" style="border-radius: 9999px; font-weight: 900; box-shadow: 0 4px 14px rgba(245, 158, 11, 0.4);" onclick="openLoginModal()">
+    🔑 내 이름 찾아서 로그인하기 ➔
   </button>
   {% endif %}
 </div>
 
 <!-- 알림 메시지 영역 -->
-<div id="kiosk-alert" style="display: none;"></div>
+<div id="kiosk-alert" style="display: none; border-radius: 14px; font-weight: 700; padding: 0.9rem 1.2rem; margin-bottom: 1rem;"></div>
 
-<!-- 본문: 상품 그리드 & 장바구니 사이드바 -->
+<!-- 2. 카테고리 필터 탭 바 (어린이 맞춤형) -->
+<div class="kiosk-cat-bar">
+  <button type="button" class="kiosk-cat-btn active" onclick="filterKioskCategory('all', this)">
+    <span>🌈</span>
+    <span>전체보기</span>
+  </button>
+  {% set seen_categories = [] %}
+  {% for item in items %}
+    {% if item.category and item.category not in seen_categories %}
+      {% set _ = seen_categories.append(item.category) %}
+      <button type="button" class="kiosk-cat-btn" onclick="filterKioskCategory('{{ item.category }}', this)">
+        {% if '과자' in item.category or '간식' in item.category or '먹' in item.category %}🍪
+        {% elif '음료' in item.category or '주스' in item.category %}🧃
+        {% elif '문구' in item.category or '선물' in item.category %}✏️
+        {% else %}🎁{% endif %}
+        <span>{{ item.category }}</span>
+      </button>
+    {% endif %}
+  {% endfor %}
+</div>
+
+<!-- 3. 본문: 상품 그리드 & 장바구니 사이드바 -->
 <div class="kiosk-wrapper">
   <!-- 상품 그리드 -->
   <div>
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-      <h3 style="font-size: 1.2rem; font-weight: 700; color: #1e293b;">매점 판매 물품</h3>
-      <span style="font-size: 0.88rem; color: var(--text-muted);">상품 카드를 터치하여 장바구니에 담으세요.</span>
-    </div>
-
-    <div class="product-grid">
+    <div class="kiosk-product-grid" id="kiosk-product-container">
       {% for item in items %}
-      <div class="product-card {% if item.stock <= 0 %}out-of-stock{% endif %}" onclick="addToCart({{ item.id }}, '{{ item.name }}', {{ item.price }}, {{ item.stock }})">
-        <img src="{{ item.image_url or '/static/images/ramen.svg' }}" alt="{{ item.name }}" class="product-img">
-        <span class="badge badge-primary" style="margin-bottom: 0.4rem;">{{ item.category }}</span>
-        <div class="product-name">{{ item.name }}</div>
-        <div class="product-price">{{ item.price }} 달란트</div>
-        <div class="product-stock">
+      <div class="kiosk-product-card {% if item.stock <= 0 %}out-of-stock{% endif %}" data-category="{{ item.category }}" onclick="addToCart({{ item.id }}, '{{ item.name }}', {{ item.price }}, {{ item.stock }})">
+        <div class="kiosk-img-wrap">
+          <img src="{{ item.image_url or '/static/images/ramen.svg' }}" alt="{{ item.name }}" class="kiosk-product-img">
+        </div>
+        <span class="kiosk-cat-tag">{{ item.category }}</span>
+        <div class="kiosk-item-name">{{ item.name }}</div>
+        <div class="kiosk-price-badge">
+          <span>🪙</span>
+          <span>{{ item.price }} 달란트</span>
+        </div>
+        <div class="kiosk-stock-status">
           {% if item.stock > 0 %}
-          재고: {{ item.stock }}개 남음
+          <span style="color: #059669;">🟢 {{ item.stock }}개 남음</span>
           {% else %}
-          <span style="color: var(--danger); font-weight: bold;">일시 품절</span>
+          <span style="color: #dc2626; font-weight: 800;">😴 품절 (모두 팔렸어요)</span>
           {% endif %}
         </div>
-        <button class="btn btn-sm btn-outline" style="width: 100%;" {% if item.stock <= 0 %}disabled{% endif %}>
-          + 담기
+        <button class="kiosk-add-btn" {% if item.stock <= 0 %}disabled{% endif %}>
+          <span>+ 담기</span>
+          <span>🛒</span>
         </button>
       </div>
       {% endfor %}
     </div>
   </div>
 
-  <!-- 장바구니 사이드바 -->
-  <div class="cart-sidebar">
-    <div class="cart-title">
-      <span>🧺 담은 장바구니</span>
-      <button class="btn btn-sm btn-outline" onclick="clearCart()">비우기</button>
+  <!-- 장바구니 사이드바 (실물 바구니 느낌) -->
+  <div class="kiosk-cart-box">
+    <div class="kiosk-cart-head">
+      <div class="kiosk-cart-title">
+        <span>🧺</span>
+        <span>내 장바구니</span>
+        <span id="cart-item-count" style="background: #eff6ff; color: #2563eb; font-size: 0.82rem; padding: 0.15rem 0.6rem; border-radius: 9999px;">0개</span>
+      </div>
+      <button class="kiosk-cart-clear-btn" onclick="clearCart()">비우기</button>
     </div>
 
-    <div id="cart-list" class="cart-items-list">
-      <div style="text-align: center; color: var(--text-muted); padding: 3rem 0;">
-        장바구니가 비어 있습니다.<br>상품을 담아주세요.
+    <!-- 장바구니 품목 리스트 -->
+    <div id="cart-list" class="kiosk-cart-list">
+      <div style="text-align: center; color: #94a3b8; padding: 2.5rem 0; font-size: 0.95rem;">
+        <div style="font-size: 2.5rem; margin-bottom: 0.4rem;">🛒</div>
+        장바구니가 비어 있어요!<br>원하는 간식을 톡 터치해 보세요.
       </div>
     </div>
 
-    <div class="cart-total-box">
-      <div class="cart-total-row">
-        <span>총 필요 달란트:</span>
-        <span style="color: #d97706;"><span id="cart-total-val">0</span> 달란트</span>
+    <!-- 어린이 직관형 달란트 뺄셈 계산기 -->
+    <div class="kiosk-calc-box">
+      <div class="kiosk-calc-row">
+        <span>🪙 내 보유 달란트:</span>
+        <span class="val-num"><span id="calc-my-talent">{{ student.current_talent if student else 0 }}</span> 달란트</span>
+      </div>
+      <div class="kiosk-calc-row">
+        <span>🛍️ 장바구니 합계:</span>
+        <span class="val-num spend">- <span id="cart-total-val">0</span> 달란트</span>
+      </div>
+      <div class="kiosk-calc-row final">
+        <span>✨ 구매 후 남는 달란트:</span>
+        <span class="val-num remain">= <span id="calc-remain-val">{{ student.current_talent if student else 0 }}</span> 달란트</span>
+      </div>
+
+      <!-- 잔고 부족 경고 배너 -->
+      <div id="kiosk-shortage-alert" class="kiosk-shortage-alert">
+        🚨 달란트가 <span id="shortage-diff-val">0</span>개 부족해요! 간식을 줄여주세요 😢
       </div>
     </div>
 
+    <!-- 결제 버튼 -->
     {% if student %}
-    <button class="btn btn-primary btn-lg" style="width: 100%; margin-top: 1rem;" onclick="attemptCheckout()">
-      달란트로 결제하기 ➔
+    <button id="checkout-main-btn" class="kiosk-checkout-btn" onclick="attemptCheckout()">
+      <span>달란트로 결제하기</span>
+      <span>➔</span>
     </button>
     {% else %}
-    <button class="btn btn-accent btn-lg" style="width: 100%; margin-top: 1rem;" onclick="openLoginModal()">
-      로그인 후 결제하기
+    <button class="kiosk-checkout-btn" style="background: linear-gradient(135deg, #f59e0b, #d97706);" onclick="openLoginModal()">
+      <span>로그인하고 결제하기</span>
+      <span>🔑</span>
     </button>
     {% endif %}
   </div>
 </div>
 
-<!-- 학생 로그인 모달 -->
+<!-- ======================================================== -->
+<!-- 4. 학생 로그인 모달 (이름 검색 및 동명이인 카드 선택) -->
+<!-- ======================================================== -->
 <div id="login-modal" class="modal-backdrop">
-  <div class="modal-content" style="max-width: 440px;">
-    <h3 style="margin-bottom: 0.3rem; color: #1e3a8a;">🙋‍♂️ 매점 학생 로그인</h3>
-    <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.2rem;">
-      이름 또는 학생 ID(번호)와 비밀번호를 입력해 주세요.
-    </p>
+  <div class="modal-content" style="max-width: 440px; border-radius: 24px; padding: 1.8rem;">
+    <div style="text-align: center; margin-bottom: 1rem;">
+      <div style="font-size: 2.5rem;">🙋‍♂️</div>
+      <h3 style="margin-top: 0.3rem; color: #1e3a8a; font-weight: 800;">학생 로그인</h3>
+      <p style="color: #64748b; font-size: 0.88rem; margin: 0;">
+        이름(또는 학생 번호)을 적고 비밀번호를 눌러주세요.
+      </p>
+    </div>
 
-    <div id="login-error" class="alert alert-danger" style="display: none; border-radius: 0.75rem; margin-bottom: 1rem;"></div>
+    <div id="login-error" class="alert alert-danger" style="display: none; border-radius: 12px; margin-bottom: 1rem; font-weight: 700;"></div>
 
     <form id="kiosk-login-form" onsubmit="handleKioskLogin(event)">
       <input type="hidden" id="login-student-id" value="">
 
       <div class="form-group" style="margin-bottom: 1rem;">
-        <label class="form-label" for="login-student-code" style="display: flex; justify-content: space-between;">
-          <span>이름 또는 학생 ID</span>
-          <span style="font-size: 0.8rem; color: #3b82f6;">* 이름만 쳐도 됩니다</span>
+        <label class="form-label" for="login-student-code" style="display: flex; justify-content: space-between; font-weight: 700;">
+          <span>내 이름 또는 학생 ID</span>
+          <span style="font-size: 0.8rem; color: #2563eb;">* 이름만 쳐도 나와요!</span>
         </label>
-        <input type="text" id="login-student-code" class="form-control" placeholder="예: 홍길동 또는 S001" autocomplete="off" required>
+        <input type="text" id="login-student-code" class="form-control" placeholder="예: 김도현 또는 S001" autocomplete="off" required style="border-radius: 12px; font-size: 1.05rem; padding: 0.75rem;">
       </div>
 
       <!-- 동명이인 및 검색 후보 카드 목록 -->
       <div id="kiosk-candidates-container" style="display: none; margin-bottom: 1rem;">
-        <div style="font-size: 0.85rem; font-weight: 700; color: #475569; margin-bottom: 0.4rem;">
-          👇 본인의 얼굴과 소속부서를 선택해 주세요:
+        <div style="font-size: 0.85rem; font-weight: 800; color: #475569; margin-bottom: 0.4rem;">
+          👇 내 얼굴 사진과 소속부서를 콕 터치해 주세요:
         </div>
-        <div id="kiosk-candidates-list" style="display: grid; grid-template-columns: 1fr; gap: 0.4rem; max-height: 180px; overflow-y: auto; padding-right: 2px;">
+        <div id="kiosk-candidates-list" style="display: grid; grid-template-columns: 1fr; gap: 0.5rem; max-height: 180px; overflow-y: auto; padding-right: 2px;">
         </div>
       </div>
 
       <div class="form-group" style="margin-bottom: 1.2rem;">
-        <label class="form-label" for="login-password">비밀번호</label>
-        <input type="password" id="login-password" class="form-control" placeholder="비밀번호 입력 (초기값: 0000)" required>
+        <label class="form-label" for="login-password" style="font-weight: 700;">비밀번호 (숫자 4자리)</label>
+        <input type="password" id="login-password" class="form-control" placeholder="비밀번호 입력 (초기값: 0000)" required style="border-radius: 12px; font-size: 1.05rem; padding: 0.75rem;">
       </div>
-      <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
-        <button type="button" class="btn btn-outline" style="flex: 1;" onclick="closeLoginModal()">취소</button>
-        <button type="submit" class="btn btn-primary" style="flex: 2; font-weight: 800;">로그인 ➔</button>
+
+      <div style="display: flex; gap: 0.6rem; margin-top: 1.2rem;">
+        <button type="button" class="btn btn-outline" style="flex: 1; border-radius: 9999px; font-weight: 700;" onclick="closeLoginModal()">취소</button>
+        <button type="submit" class="btn btn-primary" style="flex: 2; border-radius: 9999px; font-weight: 800;">로그인 완료 ➔</button>
       </div>
     </form>
   </div>
 </div>
 
-<!-- 2차 비밀번호 확인 모달 -->
+<!-- ======================================================== -->
+<!-- 5. 2차 본인 확인 PIN 패드 모달 (어린이 맞춤형 대형 터치 키패드) -->
+<!-- ======================================================== -->
 <div id="pw-confirm-modal" class="modal-backdrop">
-  <div class="modal-content">
-    <div style="text-align: center; margin-bottom: 1rem;">
-      <div style="font-size: 2.5rem;">🔐</div>
-      <h3 style="color: #1e3a8a; margin-top: 0.4rem;">본인 확인 비밀번호 재입력</h3>
-      <p style="color: var(--text-muted); font-size: 0.9rem;">
-        타인 사칭 방지를 위해 비밀번호를 다시 한번 입력해 주세요.
-      </p>
-    </div>
-
-    <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.8rem; margin-bottom: 1.2rem; text-align: center;">
-      <span style="font-size: 0.92rem; color: #475569;">결제 예정 달란트:</span>
-      <strong style="font-size: 1.25rem; color: #d97706; margin-left: 0.4rem;"><span id="confirm-total-val">0</span> 달란트</strong>
-    </div>
-
-    <div id="checkout-error" class="alert alert-danger" style="display: none;"></div>
-
-    <form id="checkout-form" onsubmit="executeCheckout(event)">
-      <div class="form-group">
-        <label class="form-label" for="confirm-password">비밀번호 확인</label>
-        <input type="password" id="confirm-password" class="form-control" placeholder="비밀번호 재입력" required autofocus>
-      </div>
-      <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
-        <button type="button" class="btn btn-outline" style="flex: 1;" onclick="closePwModal()">취소</button>
-        <button type="submit" class="btn btn-accent" style="flex: 2;">최종 결제 승인</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- 결제 완료 영수증 모달 -->
-<div id="receipt-modal" class="modal-backdrop">
-  <div class="modal-content" style="text-align: center;">
-    <div style="font-size: 3.5rem; margin-bottom: 0.5rem;">🎉</div>
-    <h2 style="color: #15803d; margin-bottom: 0.4rem;">구매 완료!</h2>
-    <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1.5rem;">
-      맛있게 먹고 은혜로운 주일 보내세요!
+  <div class="modal-content" style="border-radius: 28px; text-align: center; max-width: 380px; padding: 1.8rem 1.4rem;">
+    <div style="font-size: 2.6rem; margin-bottom: 0.2rem;">🔐</div>
+    <h3 style="color: #1e3a8a; font-weight: 900; margin-bottom: 0.2rem;">비밀번호 4자리 톡톡!</h3>
+    <p style="color: #64748b; font-size: 0.85rem; margin: 0 0 1rem 0;">
+      내 소중한 달란트를 지키기 위해 비밀번호를 눌러주세요.
     </p>
 
-    <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: var(--radius-md); padding: 1.5rem; margin-bottom: 1.5rem;">
-      <div style="font-size: 0.9rem; color: #065f46; margin-bottom: 0.3rem;">차감 후 남은 달란트</div>
-      <div style="font-size: 2.2rem; font-weight: 800; color: #047857;">
+    <!-- 결제 금액 요약 박스 -->
+    <div style="background: #fef3c7; border: 1.5px solid #fde68a; border-radius: 14px; padding: 0.65rem 1rem; margin-bottom: 0.9rem; display: flex; justify-content: space-between; align-items: center;">
+      <span style="font-size: 0.88rem; color: #92400e; font-weight: 700;">결제할 달란트:</span>
+      <strong style="font-size: 1.25rem; color: #b45309;"><span id="confirm-total-val">0</span> 달란트 🪙</strong>
+    </div>
+
+    <div id="checkout-error" class="alert alert-danger" style="display: none; border-radius: 12px; margin-bottom: 0.8rem; font-weight: 700;"></div>
+
+    <!-- 4자리 PIN 시각화 도트 (● ● ○ ○) -->
+    <div class="pin-pad-display">
+      <div class="pin-dot" id="pindot-0"></div>
+      <div class="pin-dot" id="pindot-1"></div>
+      <div class="pin-dot" id="pindot-2"></div>
+      <div class="pin-dot" id="pindot-3"></div>
+    </div>
+
+    <form id="checkout-form" onsubmit="executeCheckout(event)">
+      <input type="hidden" id="confirm-password" value="">
+
+      <!-- 터치스크린 맞춤형 대형 숫자 키패드 -->
+      <div class="pin-keypad-grid">
+        <button type="button" class="keypad-num-btn" onclick="pressPinDigit('1')">1</button>
+        <button type="button" class="keypad-num-btn" onclick="pressPinDigit('2')">2</button>
+        <button type="button" class="keypad-num-btn" onclick="pressPinDigit('3')">3</button>
+        <button type="button" class="keypad-num-btn" onclick="pressPinDigit('4')">4</button>
+        <button type="button" class="keypad-num-btn" onclick="pressPinDigit('5')">5</button>
+        <button type="button" class="keypad-num-btn" onclick="pressPinDigit('6')">6</button>
+        <button type="button" class="keypad-num-btn" onclick="pressPinDigit('7')">7</button>
+        <button type="button" class="keypad-num-btn" onclick="pressPinDigit('8')">8</button>
+        <button type="button" class="keypad-num-btn" onclick="pressPinDigit('9')">9</button>
+        <button type="button" class="keypad-num-btn fn" onclick="clearPinDigits()">초기화</button>
+        <button type="button" class="keypad-num-btn" onclick="pressPinDigit('0')">0</button>
+        <button type="button" class="keypad-num-btn fn" onclick="backspacePinDigit()">⌫ 지움</button>
+      </div>
+
+      <div style="display: flex; gap: 0.6rem; margin-top: 1.2rem;">
+        <button type="button" class="btn btn-outline" style="flex: 1; border-radius: 9999px; font-weight: 700;" onclick="closePwModal()">취소</button>
+        <button type="submit" id="pin-confirm-btn" class="btn btn-accent" style="flex: 2; border-radius: 9999px; font-weight: 900; font-size: 1.05rem;" disabled>
+          결제 확정 🚀
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ======================================================== -->
+<!-- 6. 결제 완료 영수증 모달 (축하 애니메이션) -->
+<!-- ======================================================== -->
+<div id="receipt-modal" class="modal-backdrop">
+  <div class="modal-content" style="border-radius: 28px; text-align: center; max-width: 380px; padding: 2rem 1.5rem;">
+    <div style="font-size: 4rem; margin-bottom: 0.4rem; animation: pulseSparkle 1.5s infinite;">🎉</div>
+    <h2 style="color: #15803d; font-weight: 900; margin-bottom: 0.2rem;">구매 완료!</h2>
+    <p style="color: #64748b; font-size: 0.95rem; margin-bottom: 1.2rem;">
+      맛있게 먹고 은혜로운 주일 보내세요! ❤️
+    </p>
+
+    <div style="background: #ecfdf5; border: 2px solid #a7f3d0; border-radius: 18px; padding: 1.3rem; margin-bottom: 1.3rem;">
+      <div style="font-size: 0.88rem; color: #065f46; font-weight: 700; margin-bottom: 0.3rem;">차감 후 남은 내 달란트</div>
+      <div style="font-size: 2.6rem; font-weight: 900; color: #047857;">
         🪙 <span id="receipt-remaining-val">0</span> 달란트
       </div>
-      <div style="font-size: 0.85rem; color: #059669; margin-top: 0.4rem;" id="receipt-order-no"></div>
+      <div style="font-size: 0.82rem; color: #059669; font-weight: 600; margin-top: 0.4rem;" id="receipt-order-no"></div>
     </div>
 
     <p style="color: #64748b; font-size: 0.85rem; margin-bottom: 1rem;">
-      <span id="auto-logout-timer">5</span>초 후 자동으로 로그아웃됩니다.
+      ⏱️ <strong id="auto-logout-timer" style="color: #dc2626; font-size: 1.1rem;">5</strong>초 후 안전하게 자동 로그아웃됩니다.
     </p>
 
-    <button class="btn btn-primary btn-lg" style="width: 100%;" onclick="location.href='/kiosk/logout'">
-      확인 (지금 로그아웃)
+    <button class="btn btn-primary btn-lg" style="width: 100%; border-radius: 9999px; font-weight: 900;" onclick="location.href='/kiosk/logout'">
+      확인 (지금 바로 나가기)
     </button>
   </div>
 </div>
@@ -213,7 +303,7 @@
 
 {% block scripts %}
 <script>
-  let cart = {}; // { item_id: { name, price, stock, qty } }
+  let cart = {}; // { item_id: { id, name, price, stock, qty } }
   let studentData = {% if student %}{
     id: {{ student.id }},
     student_code: "{{ student.student_code }}",
@@ -221,6 +311,23 @@
     current_talent: {{ student.current_talent }}
   }{% else %}null{% endif %};
 
+  // 1. 카테고리 필터링
+  function filterKioskCategory(cat, btnEl) {
+    document.querySelectorAll('.kiosk-cat-btn').forEach(b => b.classList.remove('active'));
+    if (btnEl) btnEl.classList.add('active');
+
+    const cards = document.querySelectorAll('.kiosk-product-card');
+    cards.forEach(card => {
+      const cardCat = card.getAttribute('data-category');
+      if (cat === 'all' || cardCat === cat) {
+        card.style.display = 'flex';
+      } else {
+        card.style.display = 'none';
+      }
+    });
+  }
+
+  // 2. 알림 메시지
   function showAlert(msg, isError = true) {
     const el = document.getElementById('kiosk-alert');
     el.className = isError ? 'alert alert-danger' : 'alert alert-success';
@@ -229,14 +336,15 @@
     setTimeout(() => { el.style.display = 'none'; }, 4000);
   }
 
+  // 3. 장바구니 추가/수정
   function addToCart(id, name, price, stock) {
     if (stock <= 0) {
-      showAlert("해당 상품은 품절되었습니다.");
+      showAlert("해당 간식은 품절되었어요! 다음에 또 만나요.");
       return;
     }
     if (cart[id]) {
       if (cart[id].qty + 1 > stock) {
-        showAlert(`재고가 부족합니다 (최대 ${stock}개)`);
+        showAlert(`재고가 부족해요! (최대 ${stock}개 가능)`);
         return;
       }
       cart[id].qty += 1;
@@ -252,7 +360,7 @@
     if (newQty <= 0) {
       delete cart[id];
     } else if (newQty > cart[id].stock) {
-      showAlert(`재고가 부족합니다 (최대 ${cart[id].stock}개)`);
+      showAlert(`재고가 부족해요! (최대 ${cart[id].stock}개)`);
       return;
     } else {
       cart[id].qty = newQty;
@@ -268,39 +376,74 @@
   function renderCart() {
     const listEl = document.getElementById('cart-list');
     const totalEl = document.getElementById('cart-total-val');
+    const countEl = document.getElementById('cart-item-count');
+    const remainEl = document.getElementById('calc-remain-val');
+    const shortageAlert = document.getElementById('kiosk-shortage-alert');
+    const shortageDiff = document.getElementById('shortage-diff-val');
+    const checkoutBtn = document.getElementById('checkout-main-btn');
+
     const keys = Object.keys(cart);
+    let totalQty = 0;
+    let totalPoints = 0;
 
     if (keys.length === 0) {
-      listEl.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 3rem 0;">장바구니가 비어 있습니다.<br>상품을 담아주세요.</div>`;
+      listEl.innerHTML = `
+        <div style="text-align: center; color: #94a3b8; padding: 2.5rem 0; font-size: 0.95rem;">
+          <div style="font-size: 2.5rem; margin-bottom: 0.4rem;">🛒</div>
+          장바구니가 비어 있어요!<br>원하는 간식을 톡 터치해 보세요.
+        </div>`;
       totalEl.innerText = "0";
+      if (countEl) countEl.innerText = "0개";
+      if (remainEl) remainEl.innerText = studentData ? studentData.current_talent : 0;
+      if (shortageAlert) shortageAlert.style.display = 'none';
+      if (checkoutBtn) checkoutBtn.disabled = false;
       return;
     }
 
-    let total = 0;
     let html = '';
     keys.forEach(id => {
       const item = cart[id];
       const subtotal = item.price * item.qty;
-      total += subtotal;
+      totalPoints += subtotal;
+      totalQty += item.qty;
       html += `
-        <div class="cart-item">
+        <div class="kiosk-cart-item">
           <div>
-            <div style="font-weight: 700; font-size: 0.95rem;">${item.name}</div>
-            <div style="font-size: 0.82rem; color: #d97706;">${item.price} 달란트 × ${item.qty} = ${subtotal}</div>
+            <div class="kiosk-item-info-name">${item.name}</div>
+            <div class="kiosk-item-info-sub">${item.price}🪙 × ${item.qty} = ${subtotal} 달란트</div>
           </div>
-          <div class="qty-control">
-            <button class="qty-btn" onclick="updateQty(${item.id}, -1)">-</button>
-            <span style="font-weight: 700; width: 24px; text-align: center;">${item.qty}</span>
-            <button class="qty-btn" onclick="updateQty(${item.id}, 1)">+</button>
+          <div class="kiosk-qty-stepper">
+            <button class="kiosk-stepper-btn" onclick="updateQty(${item.id}, -1)">−</button>
+            <span class="kiosk-stepper-num">${item.qty}</span>
+            <button class="kiosk-stepper-btn" onclick="updateQty(${item.id}, 1)">+</button>
           </div>
         </div>
       `;
     });
 
     listEl.innerHTML = html;
-    totalEl.innerText = total;
+    totalEl.innerText = totalPoints;
+    if (countEl) countEl.innerText = `${totalQty}개`;
+
+    // 달란트 뺄셈 계산 및 잔액 검증
+    if (studentData) {
+      const remaining = studentData.current_talent - totalPoints;
+      if (remainEl) remainEl.innerText = remaining;
+
+      if (remaining < 0) {
+        if (shortageAlert) {
+          shortageAlert.style.display = 'block';
+          if (shortageDiff) shortageDiff.innerText = Math.abs(remaining);
+        }
+        if (checkoutBtn) checkoutBtn.disabled = true;
+      } else {
+        if (shortageAlert) shortageAlert.style.display = 'none';
+        if (checkoutBtn) checkoutBtn.disabled = false;
+      }
+    }
   }
 
+  // 4. 결제 시도 및 PIN 패드 모달 열기
   function attemptCheckout() {
     if (!studentData) {
       openLoginModal();
@@ -308,33 +451,96 @@
     }
     const keys = Object.keys(cart);
     if (keys.length === 0) {
-      showAlert("장바구니에 담긴 물품이 없습니다.");
+      showAlert("장바구니에 담긴 간식이 없어요!");
       return;
     }
 
     let total = 0;
     keys.forEach(id => { total += cart[id].price * cart[id].qty; });
 
-    // 잔액 부족 검증 (요구사항 11)
     if (total > studentData.current_talent) {
-      showAlert(`달란트가 부족합니다! (보유: ${studentData.current_talent}달란트, 필요: ${total}달란트)`);
+      showAlert(`달란트가 부족해요! (보유: ${studentData.current_talent}달란트, 필요: ${total}달란트)`);
       return;
     }
 
     document.getElementById('confirm-total-val').innerText = total;
     document.getElementById('checkout-error').style.display = 'none';
-    document.getElementById('confirm-password').value = '';
+    clearPinDigits();
     document.getElementById('pw-confirm-modal').classList.add('show');
-    document.getElementById('confirm-password').focus();
   }
 
   function closePwModal() {
     document.getElementById('pw-confirm-modal').classList.remove('show');
   }
 
+  // 5. 어린이 터치 키패드 PIN 제어 로직
+  let pinDigits = "";
+
+  function updatePinDots() {
+    for (let i = 0; i < 4; i++) {
+      const dot = document.getElementById(`pindot-${i}`);
+      if (dot) {
+        if (i < pinDigits.length) {
+          dot.classList.add('filled');
+        } else {
+          dot.classList.remove('filled');
+        }
+      }
+    }
+    document.getElementById('confirm-password').value = pinDigits;
+    const confirmBtn = document.getElementById('pin-confirm-btn');
+    if (confirmBtn) {
+      confirmBtn.disabled = (pinDigits.length < 4);
+    }
+  }
+
+  function pressPinDigit(digit) {
+    if (pinDigits.length < 4) {
+      pinDigits += digit;
+      updatePinDots();
+      if (pinDigits.length === 4) {
+        // 자동 포커스 또는 바로 결제 버튼 활성화
+        document.getElementById('pin-confirm-btn').focus();
+      }
+    }
+  }
+
+  function backspacePinDigit() {
+    if (pinDigits.length > 0) {
+      pinDigits = pinDigits.slice(0, -1);
+      updatePinDots();
+    }
+  }
+
+  function clearPinDigits() {
+    pinDigits = "";
+    updatePinDots();
+  }
+
+  // 키보드로 입력할 경우도 PIN 패드와 동기화
+  window.addEventListener('keydown', function(e) {
+    const pwModal = document.getElementById('pw-confirm-modal');
+    if (!pwModal || !pwModal.classList.contains('show')) return;
+    if (e.key >= '0' && e.key <= '9') {
+      pressPinDigit(e.key);
+    } else if (e.key === 'Backspace') {
+      backspacePinDigit();
+    } else if (e.key === 'Escape') {
+      closePwModal();
+    }
+  });
+
+  // 6. 결제 최종 승인 처리
   async function executeCheckout(e) {
     e.preventDefault();
     const pw = document.getElementById('confirm-password').value;
+    if (!pw || pw.length < 4) {
+      const errEl = document.getElementById('checkout-error');
+      errEl.innerText = "비밀번호 4자리를 모두 눌러주세요.";
+      errEl.style.display = 'block';
+      return;
+    }
+
     const items = Object.keys(cart).map(id => ({
       item_id: parseInt(id),
       quantity: cart[id].qty
@@ -355,6 +561,7 @@
         const errEl = document.getElementById('checkout-error');
         errEl.innerText = data.message;
         errEl.style.display = 'block';
+        clearPinDigits();
         return;
       }
 
@@ -385,6 +592,7 @@
     }
   }
 
+  // 7. 로그인 모달 함수들
   function openLoginModal() {
     document.getElementById('login-modal').classList.add('show');
     document.getElementById('login-student-code').focus();
@@ -415,13 +623,13 @@
     candidates.forEach(c => {
       const card = document.createElement('div');
       card.className = 'kiosk-candidate-card';
-      card.style = 'display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0.75rem; border: 2px solid #e2e8f0; border-radius: 0.6rem; cursor: pointer; transition: all 0.2s; background: #f8fafc;';
+      card.style = 'display: flex; align-items: center; gap: 0.6rem; padding: 0.6rem 0.8rem; border: 2px solid #e2e8f0; border-radius: 14px; cursor: pointer; transition: all 0.2s; background: #f8fafc;';
       card.onclick = () => selectKioskCandidate(c.id, card);
       card.innerHTML = `
-        <img src="${c.photo_url || '/static/uploads/profiles/default_avatar.svg'}" style="width: 38px; height: 38px; border-radius: 50%; object-fit: cover; border: 1px solid #cbd5e1; background: #fff;">
+        <img src="${c.photo_url || '/static/uploads/profiles/default_avatar.svg'}" style="width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 2px solid #cbd5e1; background: #fff;">
         <div style="flex: 1;">
-          <div style="font-weight: 800; color: #0f172a; font-size: 0.95rem;">${c.name} <span style="font-size: 0.8rem; color: #64748b; font-weight: normal;">(${c.student_code})</span></div>
-          <div style="font-size: 0.78rem; color: #475569;">부서: <strong style="color: #2563eb;">${c.department}</strong>${c.age ? ` | ${c.age}세` : ''}</div>
+          <div style="font-weight: 800; color: #0f172a; font-size: 1rem;">${c.name} <span style="font-size: 0.8rem; color: #64748b; font-weight: normal;">(${c.student_code})</span></div>
+          <div style="font-size: 0.82rem; color: #475569;">부서: <strong style="color: #2563eb;">${c.department}</strong>${c.age ? ` | ${c.age}세` : ''}</div>
         </div>
       `;
       list.appendChild(card);
@@ -429,7 +637,7 @@
     container.style.display = 'block';
   }
 
-  // 이름/코드 입력 실시간 검색
+  // 실시간 학생 검색
   const kioskCodeInput = document.getElementById('login-student-code');
   if (kioskCodeInput) {
     kioskCodeInput.addEventListener('input', function(e) {
@@ -486,13 +694,12 @@
   }
 
   {% if student %}
-  // 매점 키오스크 로그인 세션 자동 로그아웃 타이머 (환경설정 연동)
+  // 매점 키오스크 로그인 세션 자동 로그아웃 타이머
   const KIOSK_TIMEOUT_SEC = {{ kiosk_auto_logout_seconds or 10 }};
   let kioskAutoLogoutSeconds = KIOSK_TIMEOUT_SEC;
   const countdownEl = document.getElementById('kiosk-countdown-sec');
 
   function resetKioskLogoutTimer() {
-    // 결제 완료 영수증 모달이 떠 있을 때는 영수증 자체 카운트다운(5초)에 위임
     const receiptModal = document.getElementById('receipt-modal');
     if (receiptModal && receiptModal.classList.contains('show')) {
       return;
@@ -501,7 +708,6 @@
     if (countdownEl) countdownEl.innerText = kioskAutoLogoutSeconds;
   }
 
-  // 화면 터치, 마우스 클릭, 키보드 입력 등 사용자 활동 감지 시 타이머 리셋
   ['click', 'touchstart', 'keydown'].forEach(evt => {
     window.addEventListener(evt, resetKioskLogoutTimer, { passive: true });
   });
