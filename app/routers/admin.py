@@ -152,8 +152,20 @@ async def activate_student(student_id: int, db: Session = Depends(get_db)):
     student = db.query(Student).filter(Student.id == student_id).first()
     if student:
         student.is_active = True
+        student.updated_at = get_kst_now()
         db.commit()
     return RedirectResponse(url="/admin/students?msg=activated", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/students/{student_id}/deactivate")
+async def deactivate_student(student_id: int, db: Session = Depends(get_db)):
+    """학생 계정 비활성화 (로그인 및 키오스크 이용 제한)"""
+    student = db.query(Student).filter(Student.id == student_id).first()
+    if student:
+        student.is_active = False
+        student.updated_at = get_kst_now()
+        db.commit()
+    return RedirectResponse(url="/admin/students?msg=deactivated", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @router.post("/students/{student_id}/reset_pw")
@@ -162,6 +174,7 @@ async def reset_student_password(student_id: int, db: Session = Depends(get_db))
     student = db.query(Student).filter(Student.id == student_id).first()
     if student:
         student.password_hash = "0000"
+        student.updated_at = get_kst_now()
         db.commit()
     return RedirectResponse(url="/admin/students?msg=pw_reset", status_code=status.HTTP_303_SEE_OTHER)
 
@@ -175,7 +188,7 @@ async def edit_student(
     gender: Optional[str] = Form(None),
     phone: Optional[str] = Form(None),
     email: Optional[str] = Form(None),
-    is_active: bool = Form(True),
+    is_active: str = Form("true"),
     photo: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db)
 ):
@@ -190,8 +203,9 @@ async def edit_student(
     student.gender = gender if gender in ["M", "F"] else None
     student.phone = phone.strip() if phone else None
     student.email = email.strip() if email else None
-    student.is_active = is_active
+    student.is_active = (is_active in ["true", "True", "1", True])
     student.updated_at = get_kst_now()
+
 
     if photo and photo.filename:
         filename = f"{student.student_code}_{photo.filename.replace(' ', '_')}"
@@ -352,43 +366,51 @@ async def upload_students_csv(
 @router.get("/talent/grant", response_class=HTMLResponse)
 async def grant_talent_page(request: Request, db: Session = Depends(get_db)):
     check_admin(request)
-    students = db.query(Student).filter(Student.is_active == True).order_by(Student.name.asc()).all()
+    students = db.query(Student).filter(Student.is_active == True).order_by(Student.department.asc(), Student.name.asc()).all()
     rules = db.query(TalentRule).filter(TalentRule.is_active == True).all()
+    departments = ["유치부", "아동부", "청소년부"]
     return templates.TemplateResponse("admin/talent_grant.html", {
         "request": request,
         "students": students,
-        "rules": rules
+        "rules": rules,
+        "departments": departments
     })
 
 
 @router.post("/talent/grant")
 async def grant_talent(
-    student_id: int = Form(...),
+    student_ids: List[int] = Form(...),
     rule_id: Optional[int] = Form(None),
     points: int = Form(...),
     reason: str = Form(...),
     granted_by: str = Form(...),
     db: Session = Depends(get_db)
 ):
-    """달란트 실적 등록 및 잔여/누적 달란트 가산"""
-    student = db.query(Student).filter(Student.id == student_id).first()
-    if not student:
-        return RedirectResponse(url="/admin/talent/grant?error=not_found", status_code=status.HTTP_303_SEE_OTHER)
+    """달란트 실적 등록 및 잔여/누적 달란트 가산 (단일 또는 복수 학생 일괄 동시 지급)"""
+    if not student_ids:
+        return RedirectResponse(url="/admin/talent/grant?error=no_students", status_code=status.HTTP_303_SEE_OTHER)
 
-    earning = TalentEarning(
-        student_id=student.id,
-        rule_id=rule_id if rule_id and rule_id > 0 else None,
-        points=points,
-        reason=reason.strip(),
-        granted_by=granted_by.strip(),
-        created_at=get_kst_now()
-    )
-    student.current_talent += points
-    student.total_earned += points
+    now = get_kst_now()
+    count = 0
+    for sid in student_ids:
+        student = db.query(Student).filter(Student.id == sid).first()
+        if student:
+            earning = TalentEarning(
+                student_id=student.id,
+                rule_id=rule_id if rule_id and rule_id > 0 else None,
+                points=points,
+                reason=reason.strip(),
+                granted_by=granted_by.strip(),
+                created_at=now
+            )
+            student.current_talent += points
+            student.total_earned += points
+            db.add(earning)
+            count += 1
 
-    db.add(earning)
     db.commit()
-    return RedirectResponse(url="/admin/talent/grant?msg=granted", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(url=f"/admin/talent/grant?msg=granted_multi&count={count}&points={points}", status_code=status.HTTP_303_SEE_OTHER)
+
 
 
 @router.get("/talent/csv/template")

@@ -48,6 +48,23 @@ async def gate_security_middleware(request: Request, call_next):
     return await call_next(request)
 
 
+# 관리자 콘솔 세션 격리 및 메뉴 이탈 시 자동 로그아웃 미들웨어
+@app.middleware("http")
+async def admin_session_isolation_middleware(request: Request, call_next):
+    path = request.url.path
+    response = await call_next(request)
+
+    # 관리자 경로(/admin, /auth/admin), 정적 파일, 게이트가 아닌 일반 화면(홈, 학생 포털, 키오스크 등)으로 벗어난 경우
+    if not path.startswith(("/admin", "/auth/admin", "/static", "/gate", "/health")):
+        # 관리자 인증 쿠키가 남아 있다면 즉시 완전 파기 (학생 세션과 철저히 격리)
+        if "yuljeon_admin_auth" in request.cookies:
+            response.delete_cookie("yuljeon_admin_auth", path="/")
+            response.delete_cookie("yuljeon_admin_auth", path="/admin")
+
+    return response
+
+
+
 # 라우터 등록
 app.include_router(auth.router)
 app.include_router(student.router)

@@ -32,7 +32,8 @@ async def admin_login(request: Request, password: str = Form(...)):
 async def admin_logout():
     """관리자 로그아웃"""
     response = RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
-    response.delete_cookie("yuljeon_admin_auth")
+    response.delete_cookie("yuljeon_admin_auth", path="/")
+    response.delete_cookie("yuljeon_admin_auth", path="/admin")
     return response
 
 
