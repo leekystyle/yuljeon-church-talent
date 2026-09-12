@@ -1,6 +1,7 @@
 from sqlalchemy import (
     Column, Integer, String, Text, Boolean, DateTime, ForeignKey
 )
+from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import relationship
 from app.database import Base
 from app.timezone import get_kst_now
@@ -14,7 +15,7 @@ class Student(Base):
     student_code = Column(String(20), unique=True, index=True, nullable=False)  # 고유 ID (S001~, 필수)
     name = Column(String(50), nullable=False, index=True)                       # 이름 (필수)
     password_hash = Column(String(255), nullable=False)                         # 비밀번호 (필수)
-    photo_url = Column(String(255), nullable=True)                              # 프로필 사진 경로 (선택/추가)
+    photo_url = Column(Text().with_variant(MEDIUMTEXT, "mysql", "mariadb"), nullable=True)  # 프로필 사진 (Base64 Data URL 또는 경로)
     department = Column(String(50), nullable=True)                              # 소속(아동부/청소년부 등, 선택)
     age = Column(Integer, nullable=True)                                        # 나이 (선택)
     gender = Column(String(10), nullable=True)                                  # 성별 (선택)
@@ -82,7 +83,7 @@ class Item(Base):
     category = Column(String(50), nullable=False)                               # 분류 (먹거리/문화/문구)
     price = Column(Integer, nullable=False)                                     # 필요 달란트 가격
     stock = Column(Integer, default=0, nullable=False)                          # 재고 수량
-    image_url = Column(String(255), nullable=True)                              # 상품 이미지 경로
+    image_url = Column(Text().with_variant(MEDIUMTEXT, "mysql", "mariadb"), nullable=True)  # 상품 이미지 (Base64 Data URL 또는 경로)
     is_active = Column(Boolean, default=True, nullable=False)                   # 판매 활성 여부
 
     created_at = Column(DateTime(timezone=True), default=get_kst_now, nullable=False)

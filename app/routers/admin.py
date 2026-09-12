@@ -16,6 +16,7 @@ from app.models import (
 )
 from app.config import ADMIN_PW
 from app.timezone import get_kst_now
+from app.image_utils import bytes_to_data_url
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Jinja2Templates(directory="templates")
@@ -122,13 +123,16 @@ async def create_student(
         photo_bytes = await photo.read()
         if len(photo_bytes) > 500 * 1024:
             return RedirectResponse(url="/admin/students?error=image_too_large", status_code=status.HTTP_303_SEE_OTHER)
-        filename = f"{student_code}_{photo.filename.replace(' ', '_')}"
-        upload_dir = "static/uploads/profiles"
-        os.makedirs(upload_dir, exist_ok=True)
-        file_path = os.path.join(upload_dir, filename)
-        with open(file_path, "wb") as buffer:
-            buffer.write(photo_bytes)
-        photo_url = f"/static/uploads/profiles/{filename}"
+        # Base64 Data URL로 인코딩하여 DB 영구 저장
+        photo_url = bytes_to_data_url(photo_bytes, photo.filename)
+        try:
+            filename = f"{student_code}_{photo.filename.replace(' ', '_')}"
+            upload_dir = "static/uploads/profiles"
+            os.makedirs(upload_dir, exist_ok=True)
+            with open(os.path.join(upload_dir, filename), "wb") as buffer:
+                buffer.write(photo_bytes)
+        except Exception:
+            pass
 
     student = Student(
         student_code=student_code,
@@ -217,13 +221,16 @@ async def edit_student(
         photo_bytes = await photo.read()
         if len(photo_bytes) > 500 * 1024:
             return RedirectResponse(url="/admin/students?error=image_too_large", status_code=status.HTTP_303_SEE_OTHER)
-        filename = f"{student.student_code}_{photo.filename.replace(' ', '_')}"
-        upload_dir = "static/uploads/profiles"
-        os.makedirs(upload_dir, exist_ok=True)
-        file_path = os.path.join(upload_dir, filename)
-        with open(file_path, "wb") as buffer:
-            buffer.write(photo_bytes)
-        student.photo_url = f"/static/uploads/profiles/{filename}"
+        # Base64 Data URL로 인코딩하여 DB 영구 저장
+        student.photo_url = bytes_to_data_url(photo_bytes, photo.filename)
+        try:
+            filename = f"{student.student_code}_{photo.filename.replace(' ', '_')}"
+            upload_dir = "static/uploads/profiles"
+            os.makedirs(upload_dir, exist_ok=True)
+            with open(os.path.join(upload_dir, filename), "wb") as buffer:
+                buffer.write(photo_bytes)
+        except Exception:
+            pass
 
     db.commit()
     return RedirectResponse(url="/admin/students?msg=updated", status_code=status.HTTP_303_SEE_OTHER)
@@ -665,13 +672,16 @@ async def create_item(
         image_bytes = await image.read()
         if len(image_bytes) > 500 * 1024:
             return RedirectResponse(url="/admin/items?error=image_too_large", status_code=status.HTTP_303_SEE_OTHER)
-        filename = f"{item_code}_{image.filename.replace(' ', '_')}"
-        upload_dir = "static/images"
-        os.makedirs(upload_dir, exist_ok=True)
-        file_path = os.path.join(upload_dir, filename)
-        with open(file_path, "wb") as buffer:
-            buffer.write(image_bytes)
-        image_url = f"/static/images/{filename}"
+        # Base64 Data URL로 인코딩하여 DB 영구 저장
+        image_url = bytes_to_data_url(image_bytes, image.filename)
+        try:
+            filename = f"{item_code}_{image.filename.replace(' ', '_')}"
+            upload_dir = "static/images"
+            os.makedirs(upload_dir, exist_ok=True)
+            with open(os.path.join(upload_dir, filename), "wb") as buffer:
+                buffer.write(image_bytes)
+        except Exception:
+            pass
 
     item = Item(
         item_code=item_code,
@@ -845,13 +855,16 @@ async def update_item_image(
         image_bytes = await image.read()
         if len(image_bytes) > 500 * 1024:
             return RedirectResponse(url="/admin/items?error=image_too_large", status_code=status.HTTP_303_SEE_OTHER)
-        filename = f"item_{item.item_code}_{image.filename.replace(' ', '_')}"
-        upload_dir = "static/uploads/items"
-        os.makedirs(upload_dir, exist_ok=True)
-        file_path = os.path.join(upload_dir, filename)
-        with open(file_path, "wb") as buffer:
-            buffer.write(image_bytes)
-        item.image_url = f"/static/uploads/items/{filename}"
+        # Base64 Data URL로 인코딩하여 DB 영구 저장
+        item.image_url = bytes_to_data_url(image_bytes, image.filename)
+        try:
+            filename = f"item_{item.item_code}_{image.filename.replace(' ', '_')}"
+            upload_dir = "static/uploads/items"
+            os.makedirs(upload_dir, exist_ok=True)
+            with open(os.path.join(upload_dir, filename), "wb") as buffer:
+                buffer.write(image_bytes)
+        except Exception:
+            pass
         db.commit()
 
     return RedirectResponse(url="/admin/items?msg=image_updated", status_code=status.HTTP_303_SEE_OTHER)

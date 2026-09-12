@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Student, TalentRule, TalentEarning, Order, Item
 from app.timezone import get_kst_now
+from app.image_utils import bytes_to_data_url
 
 router = APIRouter(prefix="/student", tags=["student"])
 templates = Jinja2Templates(directory="templates")
@@ -115,13 +116,18 @@ async def register_student(
                 "error": "이미지 파일 크기는 500KB 이하만 업로드 가능합니다."
             })
         
-        filename = f"{student_code}_{photo.filename.replace(' ', '_')}"
-        upload_dir = "static/uploads/profiles"
-        os.makedirs(upload_dir, exist_ok=True)
-        file_path = os.path.join(upload_dir, filename)
-        with open(file_path, "wb") as buffer:
-            buffer.write(photo_bytes)
-        photo_url = f"/static/uploads/profiles/{filename}"
+        # Base64 Data URL로 인코딩하여 DB에 직접 영구 보존 (컨테이너 재배포 시에도 영구 유지)
+        photo_url = bytes_to_data_url(photo_bytes, photo.filename)
+        
+        # 로컬 파일 디스크 백업
+        try:
+            filename = f"{student_code}_{photo.filename.replace(' ', '_')}"
+            upload_dir = "static/uploads/profiles"
+            os.makedirs(upload_dir, exist_ok=True)
+            with open(os.path.join(upload_dir, filename), "wb") as buffer:
+                buffer.write(photo_bytes)
+        except Exception:
+            pass
 
     new_student = Student(
         student_code=student_code,

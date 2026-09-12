@@ -14,6 +14,7 @@ from app.models import (
     Student, TalentRule, TalentEarning, Item, Order, OrderItem, AnnualReset, AnnualSnapshot,
     Department, RuleCategory
 )
+from sqlalchemy import text
 from app.timezone import get_kst_now
 
 
@@ -21,6 +22,16 @@ def init_db_and_seed():
     print("=== [1/3] 데이터베이스 테이블 생성 시작 ('yuljeon-' 접두어) ===")
     Base.metadata.create_all(bind=engine)
     print("테이블 목록:", [t for t in Base.metadata.tables.keys()])
+
+    # MariaDB 컬럼 자동 마이그레이션 (photo_url, image_url을 MEDIUMTEXT로 확장)
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE `yuljeon-students` MODIFY COLUMN photo_url MEDIUMTEXT;"))
+            conn.execute(text("ALTER TABLE `yuljeon-items` MODIFY COLUMN image_url MEDIUMTEXT;"))
+            conn.commit()
+            print("✓ [DB 마이그레이션] photo_url 및 image_url 컬럼 MEDIUMTEXT 승격 완료")
+    except Exception as e:
+        print(f"ℹ️ [DB 마이그레이션 정보] {e}")
 
     db = SessionLocal()
     try:
