@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}학생 관리 - 율전중앙교회 달란트{% endblock %}
+
+{% block content %}
+<div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.8rem;">
+  <a href="/admin/dashboard" class="btn btn-sm btn-outline">📊 활동 대시보드</a>
+  <a href="/admin/students" class="btn btn-sm btn-primary">👥 학생 관리/승인</a>
+  <a href="/admin/talent/grant" class="btn btn-sm btn-outline">🪙 달란트 실적 지급</a>
+  <a href="/admin/talent/rules" class="btn btn-sm btn-outline">📜 지급 기준 관리</a>
+  <a href="/admin/items" class="btn btn-sm btn-outline">🛍️ 매점 물품/재고</a>
+  <a href="/admin/orders" class="btn btn-sm btn-outline">🔄 구매내역 수정/반품</a>
+  <a href="/admin/annual_reset" class="btn btn-sm btn-outline">⏳ 연간 총괄 초기화</a>
+  <a href="/auth/admin/logout" class="btn btn-sm btn-danger" style="margin-left: auto;">로그아웃</a>
+</div>
+
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+  <div>
+    <h2 style="font-size: 1.7rem; font-weight: 800; color: #1e3a8a;">학생 관리 및 계정 승인</h2>
+    <p style="color: var(--text-muted); font-size: 0.95rem;">
+      신규 학생 직접 등록, 가입 신청 계정 활성화, 비밀번호 0000 초기화가 가능합니다.
+    </p>
+  </div>
+  <button class="btn btn-primary" onclick="openStudentModal()">
+    + 신규 학생 직접 등록
+  </button>
+</div>
+
+<!-- 검색 및 부서 필터 -->
+<div class="card" style="padding: 1rem 1.2rem; margin-bottom: 1.5rem;">
+  <form method="GET" action="/admin/students" style="display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap;">
+    <div style="flex: 2; min-width: 200px;">
+      <input type="text" name="search" class="form-control" placeholder="학생 성명 또는 고유 ID 검색 (예: S001, 김도현)" value="{{ search }}">
+    </div>
+    <div style="flex: 1; min-width: 140px;">
+      <select name="dept" class="form-control">
+        <option value="">전체 부서</option>
+        <option value="유치부" {% if dept == '유치부' %}selected{% endif %}>유치부</option>
+        <option value="아동부" {% if dept == '아동부' %}selected{% endif %}>아동부</option>
+        <option value="청소년부" {% if dept == '청소년부' %}selected{% endif %}>청소년부</option>
+      </select>
+    </div>
+    <button type="submit" class="btn btn-outline">🔍 검색</button>
+    {% if search or dept %}
+    <a href="/admin/students" class="btn btn-outline">초기화</a>
+    {% endif %}
+  </form>
+</div>
+
+<!-- 학생 목록 테이블 -->
+<div class="card">
+  <div class="table-responsive">
+    <table class="styled-table">
+      <thead>
+        <tr>
+          <th>사진</th>
+          <th>고유 ID</th>
+          <th>성명</th>
+          <th>소속</th>
+          <th>나이/성별</th>
+          <th>연락처/이메일</th>
+          <th style="text-align: right;">보유 달란트</th>
+          <th>상태</th>
+          <th>관리 기능</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in students %}
+        <tr>
+          <td>
+            <img src="{{ s.photo_url or '/static/uploads/profiles/default_avatar.svg' }}" alt="{{ s.name }}" style="width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border); background: white;">
+          </td>
+          <td><code>{{ s.student_code }}</code></td>
+          <td><strong>{{ s.name }}</strong></td>
+          <td><span class="badge badge-primary">{{ s.department or '미지정' }}</span></td>
+          <td>{{ s.age ~ '세' if s.age else '-' }} / {{ '남' if s.gender == 'M' else ('여' if s.gender == 'F' else '-') }}</td>
+          <td>
+            <div style="font-size: 0.85rem;">{{ s.phone or '-' }}</div>
+            <div style="font-size: 0.78rem; color: var(--text-muted);">{{ s.email or '' }}</div>
+          </td>
+          <td style="text-align: right; font-weight: 800; color: #d97706; font-size: 1.05rem;">
+            {{ s.current_talent }} 달란트
+          </td>
+          <td>
+            {% if s.is_active %}
+            <span class="badge badge-success">활성 승인</span>
+            {% else %}
+            <span class="badge badge-warning">승인 대기</span>
+            {% endif %}
+          </td>
+          <td>
+            <div style="display: flex; gap: 0.3rem;">
+              {% if not s.is_active %}
+              <form action="/admin/students/{{ s.id }}/activate" method="POST" onsubmit="return confirm('{{ s.name }} 학생 계정을 활성화 승인하시겠습니까?');">
+                <button type="submit" class="btn btn-sm btn-accent">승인</button>
+              </form>
+              {% endif %}
+              <form action="/admin/students/{{ s.id }}/reset_pw" method="POST" onsubmit="return confirm('{{ s.name }} 학생의 비밀번호를 0000으로 초기화하시겠습니까?');">
+                <button type="submit" class="btn btn-sm btn-outline" title="비밀번호 분실 시 0000으로 재설정">비번초기화</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- 신규 학생 등록 모달 (요구사항 1 & 6) -->
+<div id="student-modal" class="modal-backdrop">
+  <div class="modal-content" style="max-width: 500px;">
+    <h3 style="margin-bottom: 0.4rem; color: #1e3a8a;">신규 학생 등록</h3>
+    <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1.2rem;">
+      관리자가 학생을 등록하면 즉시 활성화되며 초기 비밀번호는 <strong>0000</strong>으로 부여됩니다.
+    </p>
+
+    <form action="/admin/students/create" method="POST" enctype="multipart/form-data">
+      <div class="form-group">
+        <label class="form-label" for="new-name">학생 이름 <span style="color: red;">*</span></label>
+        <input type="text" id="new-name" name="name" class="form-control" placeholder="성명 입력" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="new-code">고유 ID (비워두면 자동 채번)</label>
+        <input type="text" id="new-code" name="student_code" class="form-control" placeholder="예: S085 (미입력시 자동생성)">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="new-photo">학생 프로필 사진</label>
+        <input type="file" id="new-photo" name="photo" class="form-control" accept="image/*">
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem;">
+        <div class="form-group">
+          <label class="form-label" for="new-dept">소속</label>
+          <select id="new-dept" name="department" class="form-control">
+            <option value="아동부">아동부</option>
+            <option value="청소년부">청소년부</option>
+            <option value="유치부">유치부</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="new-age">나이</label>
+          <input type="number" id="new-age" name="age" class="form-control" placeholder="예: 12">
+        </div>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem;">
+        <div class="form-group">
+          <label class="form-label" for="new-gender">성별</label>
+          <select id="new-gender" name="gender" class="form-control">
+            <option value="M">남</option>
+            <option value="F">여</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="new-phone">연락처</label>
+          <input type="tel" id="new-phone" name="phone" class="form-control" placeholder="010-0000-0000">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="new-email">이메일</label>
+        <input type="email" id="new-email" name="email" class="form-control" placeholder="email@domain.com">
+      </div>
+
+      <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+        <button type="button" class="btn btn-outline" style="flex: 1;" onclick="closeStudentModal()">취소</button>
+        <button type="submit" class="btn btn-primary" style="flex: 2;">학생 등록 완료</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function openStudentModal() {
+    document.getElementById('student-modal').classList.add('show');
+  }
+  function closeStudentModal() {
+    document.getElementById('student-modal').classList.remove('show');
+  }
+</script>
+{% endblock %}

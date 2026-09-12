@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <circle cx="50" cy="50" r="46" fill="#EDE9FE" stroke="#8B5CF6" stroke-width="2"/>
+  <!-- 커피 컵 -->
+  <path d="M30 38 L36 78 Q50 82 64 78 L70 38 Z" fill="#6366F1"/>
+  <!-- 컵 뚜껑 -->
+  <rect x="27" y="32" width="46" height="7" rx="3" fill="#4338CA"/>
+  <!-- 커피 로고 원 -->
+  <circle cx="50" cy="58" r="10" fill="#FEF3C7"/>
+  <text x="50" y="62" font-family="sans-serif" font-size="8" font-weight="bold" fill="#B45309" text-anchor="middle">CAFE</text>
+  <!-- 김/스팀 -->
+  <path d="M42 26 Q40 18 44 14" fill="none" stroke="#A5B4FC" stroke-width="2" stroke-linecap="round"/>
+  <path d="M50 24 Q48 16 52 12" fill="none" stroke="#A5B4FC" stroke-width="2" stroke-linecap="round"/>
+  <path d="M58 26 Q56 18 60 14" fill="none" stroke="#A5B4FC" stroke-width="2" stroke-linecap="round"/>
+</svg>

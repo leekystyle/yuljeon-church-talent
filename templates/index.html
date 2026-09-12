@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}율전중앙교회 교회학교 달란트 잔치 포털{% endblock %}
+
+{% block content %}
+<div style="text-align: center; margin: 2rem 0 3rem;">
+  <span class="badge badge-warning" style="font-size: 0.95rem; padding: 0.35rem 1rem; margin-bottom: 0.8rem;">
+    🌟 아동부 ~ 청소년부 믿음과 성장의 잔치
+  </span>
+  <h1 style="font-size: 2.3rem; font-weight: 800; color: #0f172a; margin-bottom: 0.8rem;">
+    율전중앙교회 달란트 시스템
+  </h1>
+  <p style="color: var(--text-muted); font-size: 1.1rem; max-width: 600px; margin: 0 auto;">
+    예배와 전도, 신앙 모범 활동으로 모은 달란트를 투명하게 확인하고 매점에서 즐겁게 사용해 보세요!
+  </p>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 3rem;">
+  <!-- 매점 키오스크 카드 -->
+  <div class="card" style="display: flex; flex-direction: column; justify-content: space-between; border-top: 4px solid #f59e0b;">
+    <div>
+      <div style="font-size: 2.5rem; margin-bottom: 0.8rem;">🛒</div>
+      <h2 style="font-size: 1.35rem; font-weight: 700; margin-bottom: 0.5rem; color: #1e293b;">매점 키오스크</h2>
+      <p style="color: var(--text-muted); font-size: 0.92rem; margin-bottom: 1.5rem;">
+        매점 전용 태블릿/PC에서 본인 사진과 잔여 달란트를 확인하고 장바구니에 상품을 담아 2차 비밀번호로 안전하게 결제합니다.
+      </p>
+    </div>
+    <a href="/kiosk" class="btn btn-accent btn-lg" style="width: 100%;">
+      매점 키오스크 바로가기 ➔
+    </a>
+  </div>
+
+  <!-- 학생 포털 카드 -->
+  <div class="card" style="display: flex; flex-direction: column; justify-content: space-between; border-top: 4px solid #2563eb;">
+    <div>
+      <div style="font-size: 2.5rem; margin-bottom: 0.8rem;">🙋‍♂️</div>
+      <h2 style="font-size: 1.35rem; font-weight: 700; margin-bottom: 0.5rem; color: #1e293b;">학생 전용 포털</h2>
+      <p style="color: var(--text-muted); font-size: 0.92rem; margin-bottom: 1.5rem;">
+        내가 획득한 달란트 총액, 사용한 달란트, 현재 잔여 달란트 및 일자별 적립·사용 세부 내역을 실시간으로 확인합니다.
+      </p>
+    </div>
+    <div style="display: flex; gap: 0.6rem;">
+      <a href="/student/login" class="btn btn-primary" style="flex: 1;">학생 로그인</a>
+      <a href="/student/register" class="btn btn-outline" style="flex: 1;">신규 회원가입</a>
+    </div>
+  </div>
+
+  <!-- 관리자 콘솔 카드 -->
+  <div class="card" style="display: flex; flex-direction: column; justify-content: space-between; border-top: 4px solid #10b981;">
+    <div>
+      <div style="font-size: 2.5rem; margin-bottom: 0.8rem;">⚙️</div>
+      <h2 style="font-size: 1.35rem; font-weight: 700; margin-bottom: 0.5rem; color: #1e293b;">교사 / 관리자 콘솔</h2>
+      <p style="color: var(--text-muted); font-size: 0.92rem; margin-bottom: 1.5rem;">
+        학생 등록 및 승인, 달란트 실적 지급, 기준 및 품목 관리, 구매내역 수정(롤백 교체), 연 1회 총괄 초기화를 관리합니다.
+      </p>
+    </div>
+    <a href="/admin/dashboard" class="btn btn-outline" style="width: 100%;">
+      관리자 로그인 ➔
+    </a>
+  </div>
+</div>
+
+<!-- 정보 배너 -->
+<div class="card" style="background: linear-gradient(135deg, #eff6ff, #f8fafc); border: 1px solid #bfdbfe;">
+  <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+    <div>
+      <h3 style="font-size: 1.15rem; font-weight: 700; color: #1e40af; margin-bottom: 0.3rem;">
+        📖 달란트 지급 기준 및 매점 교환 물품이 궁금한가요?
+      </h3>
+      <p style="color: #3b82f6; font-size: 0.92rem;">
+        주일 출석, 새친구 전도, 성경 암송 등 지급 기준표와 매점 상품 목록을 로그인 없이도 열람할 수 있습니다.
+      </p>
+    </div>
+    <a href="/student/rules" class="btn btn-primary">
+      기준 및 물품 보러가기
+    </a>
+  </div>
+</div>
+{% endblock %}

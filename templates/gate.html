@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>보안 게이트웨이 인증 - 율전중앙교회 달란트 시스템</title>
+  <link rel="stylesheet" href="/static/css/main.css">
+  <style>
+    .gate-container {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .gate-card {
+      max-width: 440px;
+      width: 100%;
+      text-align: center;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(16px);
+      border-radius: var(--radius-lg);
+      padding: 2.5rem 2rem;
+      box-shadow: var(--shadow-lg);
+      border: 1px solid var(--border);
+    }
+    .gate-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="gate-container">
+    <div class="gate-card">
+      <div class="gate-icon">🔐</div>
+      <h2 style="margin-bottom: 0.5rem; color: #1e3a8a;">시스템 진입 보안 인증</h2>
+      <p style="color: var(--text-muted); font-size: 0.92rem; margin-bottom: 1.8rem;">
+        율전중앙교회 달란트 시스템에 접속하려면 관리자 패스워드(ADMIN_PW)를 입력하세요.
+      </p>
+
+      {% if error %}
+      <div class="alert alert-danger" style="text-align: left;">
+        ⚠️ 비밀번호가 올바르지 않습니다. 다시 입력해 주세요.
+      </div>
+      {% endif %}
+
+      <form action="/auth/gate" method="POST">
+        <div class="form-group" style="text-align: left;">
+          <label class="form-label" for="gate_pw">시스템 접속 비밀번호</label>
+          <input type="password" id="gate_pw" name="gate_pw" class="form-control" placeholder="비밀번호 입력 (기본: 1234)" required autofocus>
+        </div>
+        <button type="submit" class="btn btn-primary btn-lg" style="width: 100%; margin-top: 0.5rem;">
+          접속하기 ➔
+        </button>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

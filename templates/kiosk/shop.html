@@ -1,0 +1,398 @@
+{% extends "base.html" %}
+
+{% block title %}매점 키오스크 - 율전중앙교회 달란트{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/css/kiosk.css">
+{% endblock %}
+
+{% block content %}
+<!-- 학생 상태 및 상단 헤더 카드 -->
+<div class="kiosk-header-card">
+  {% if student %}
+  <div class="kiosk-student-profile">
+    <img src="{{ student.photo_url or '/static/uploads/profiles/default_avatar.svg' }}" alt="{{ student.name }}" class="kiosk-student-avatar">
+    <div>
+      <div style="font-size: 0.85rem; opacity: 0.85;">{{ student.department or '교회학교' }} | ID: {{ student.student_code }}</div>
+      <h2 style="font-size: 1.5rem; font-weight: 800;">{{ student.name }} 학생</h2>
+    </div>
+  </div>
+  <div style="display: flex; align-items: center; gap: 1.2rem;">
+    <div class="kiosk-talent-badge">
+      <span>🪙 보유 달란트:</span>
+      <span id="current-talent-val">{{ student.current_talent }}</span>
+    </div>
+    <a href="/kiosk/logout" class="btn btn-outline" style="background: rgba(255,255,255,0.2); color: white; border-color: rgba(255,255,255,0.4);">
+      로그아웃
+    </a>
+  </div>
+  {% else %}
+  <div style="display: flex; align-items: center; gap: 1rem;">
+    <div style="font-size: 2.2rem;">🛒</div>
+    <div>
+      <h2 style="font-size: 1.35rem; font-weight: 800;">율전중앙 매점 키오스크</h2>
+      <p style="font-size: 0.9rem; opacity: 0.9;">구매를 시작하려면 먼저 학생 계정으로 로그인해 주세요.</p>
+    </div>
+  </div>
+  <button class="btn btn-accent btn-lg" onclick="openLoginModal()">
+    🔑 학생 로그인하기
+  </button>
+  {% endif %}
+</div>
+
+<!-- 알림 메시지 영역 -->
+<div id="kiosk-alert" style="display: none;"></div>
+
+<!-- 본문: 상품 그리드 & 장바구니 사이드바 -->
+<div class="kiosk-wrapper">
+  <!-- 상품 그리드 -->
+  <div>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+      <h3 style="font-size: 1.2rem; font-weight: 700; color: #1e293b;">매점 판매 물품</h3>
+      <span style="font-size: 0.88rem; color: var(--text-muted);">상품 카드를 터치하여 장바구니에 담으세요.</span>
+    </div>
+
+    <div class="product-grid">
+      {% for item in items %}
+      <div class="product-card {% if item.stock <= 0 %}out-of-stock{% endif %}" onclick="addToCart({{ item.id }}, '{{ item.name }}', {{ item.price }}, {{ item.stock }})">
+        <img src="{{ item.image_url or '/static/images/ramen.svg' }}" alt="{{ item.name }}" class="product-img">
+        <span class="badge badge-primary" style="margin-bottom: 0.4rem;">{{ item.category }}</span>
+        <div class="product-name">{{ item.name }}</div>
+        <div class="product-price">{{ item.price }} 달란트</div>
+        <div class="product-stock">
+          {% if item.stock > 0 %}
+          재고: {{ item.stock }}개 남음
+          {% else %}
+          <span style="color: var(--danger); font-weight: bold;">일시 품절</span>
+          {% endif %}
+        </div>
+        <button class="btn btn-sm btn-outline" style="width: 100%;" {% if item.stock <= 0 %}disabled{% endif %}>
+          + 담기
+        </button>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- 장바구니 사이드바 -->
+  <div class="cart-sidebar">
+    <div class="cart-title">
+      <span>🧺 담은 장바구니</span>
+      <button class="btn btn-sm btn-outline" onclick="clearCart()">비우기</button>
+    </div>
+
+    <div id="cart-list" class="cart-items-list">
+      <div style="text-align: center; color: var(--text-muted); padding: 3rem 0;">
+        장바구니가 비어 있습니다.<br>상품을 담아주세요.
+      </div>
+    </div>
+
+    <div class="cart-total-box">
+      <div class="cart-total-row">
+        <span>총 필요 달란트:</span>
+        <span style="color: #d97706;"><span id="cart-total-val">0</span> 달란트</span>
+      </div>
+    </div>
+
+    {% if student %}
+    <button class="btn btn-primary btn-lg" style="width: 100%; margin-top: 1rem;" onclick="attemptCheckout()">
+      달란트로 결제하기 ➔
+    </button>
+    {% else %}
+    <button class="btn btn-accent btn-lg" style="width: 100%; margin-top: 1rem;" onclick="openLoginModal()">
+      로그인 후 결제하기
+    </button>
+    {% endif %}
+  </div>
+</div>
+
+<!-- 학생 로그인 모달 -->
+<div id="login-modal" class="modal-backdrop">
+  <div class="modal-content">
+    <h3 style="margin-bottom: 0.5rem; color: #1e3a8a;">🙋‍♂️ 매점 학생 로그인</h3>
+    <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem;">
+      본인의 학생 ID(예: S001)와 비밀번호를 입력해 주세요.
+    </p>
+
+    <div id="login-error" class="alert alert-danger" style="display: none;"></div>
+
+    <form id="kiosk-login-form" onsubmit="handleKioskLogin(event)">
+      <div class="form-group">
+        <label class="form-label" for="login-student-code">학생 ID</label>
+        <input type="text" id="login-student-code" class="form-control" placeholder="예: S001" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="login-password">비밀번호</label>
+        <input type="password" id="login-password" class="form-control" placeholder="비밀번호 입력 (초기값: 0000)" required>
+      </div>
+      <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+        <button type="button" class="btn btn-outline" style="flex: 1;" onclick="closeLoginModal()">취소</button>
+        <button type="submit" class="btn btn-primary" style="flex: 2;">로그인</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 2차 비밀번호 확인 모달 -->
+<div id="pw-confirm-modal" class="modal-backdrop">
+  <div class="modal-content">
+    <div style="text-align: center; margin-bottom: 1rem;">
+      <div style="font-size: 2.5rem;">🔐</div>
+      <h3 style="color: #1e3a8a; margin-top: 0.4rem;">본인 확인 비밀번호 재입력</h3>
+      <p style="color: var(--text-muted); font-size: 0.9rem;">
+        타인 사칭 방지를 위해 비밀번호를 다시 한번 입력해 주세요.
+      </p>
+    </div>
+
+    <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.8rem; margin-bottom: 1.2rem; text-align: center;">
+      <span style="font-size: 0.92rem; color: #475569;">결제 예정 달란트:</span>
+      <strong style="font-size: 1.25rem; color: #d97706; margin-left: 0.4rem;"><span id="confirm-total-val">0</span> 달란트</strong>
+    </div>
+
+    <div id="checkout-error" class="alert alert-danger" style="display: none;"></div>
+
+    <form id="checkout-form" onsubmit="executeCheckout(event)">
+      <div class="form-group">
+        <label class="form-label" for="confirm-password">비밀번호 확인</label>
+        <input type="password" id="confirm-password" class="form-control" placeholder="비밀번호 재입력" required autofocus>
+      </div>
+      <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+        <button type="button" class="btn btn-outline" style="flex: 1;" onclick="closePwModal()">취소</button>
+        <button type="submit" class="btn btn-accent" style="flex: 2;">최종 결제 승인</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 결제 완료 영수증 모달 -->
+<div id="receipt-modal" class="modal-backdrop">
+  <div class="modal-content" style="text-align: center;">
+    <div style="font-size: 3.5rem; margin-bottom: 0.5rem;">🎉</div>
+    <h2 style="color: #15803d; margin-bottom: 0.4rem;">구매 완료!</h2>
+    <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1.5rem;">
+      맛있게 먹고 은혜로운 주일 보내세요!
+    </p>
+
+    <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: var(--radius-md); padding: 1.5rem; margin-bottom: 1.5rem;">
+      <div style="font-size: 0.9rem; color: #065f46; margin-bottom: 0.3rem;">차감 후 남은 달란트</div>
+      <div style="font-size: 2.2rem; font-weight: 800; color: #047857;">
+        🪙 <span id="receipt-remaining-val">0</span> 달란트
+      </div>
+      <div style="font-size: 0.85rem; color: #059669; margin-top: 0.4rem;" id="receipt-order-no"></div>
+    </div>
+
+    <p style="color: #64748b; font-size: 0.85rem; margin-bottom: 1rem;">
+      <span id="auto-logout-timer">5</span>초 후 자동으로 로그아웃됩니다.
+    </p>
+
+    <button class="btn btn-primary btn-lg" style="width: 100%;" onclick="location.href='/kiosk/logout'">
+      확인 (지금 로그아웃)
+    </button>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  let cart = {}; // { item_id: { name, price, stock, qty } }
+  let studentData = {% if student %}{
+    id: {{ student.id }},
+    student_code: "{{ student.student_code }}",
+    name: "{{ student.name }}",
+    current_talent: {{ student.current_talent }}
+  }{% else %}null{% endif %};
+
+  function showAlert(msg, isError = true) {
+    const el = document.getElementById('kiosk-alert');
+    el.className = isError ? 'alert alert-danger' : 'alert alert-success';
+    el.innerText = msg;
+    el.style.display = 'block';
+    setTimeout(() => { el.style.display = 'none'; }, 4000);
+  }
+
+  function addToCart(id, name, price, stock) {
+    if (stock <= 0) {
+      showAlert("해당 상품은 품절되었습니다.");
+      return;
+    }
+    if (cart[id]) {
+      if (cart[id].qty + 1 > stock) {
+        showAlert(`재고가 부족합니다 (최대 ${stock}개)`);
+        return;
+      }
+      cart[id].qty += 1;
+    } else {
+      cart[id] = { id, name, price, stock, qty: 1 };
+    }
+    renderCart();
+  }
+
+  function updateQty(id, delta) {
+    if (!cart[id]) return;
+    const newQty = cart[id].qty + delta;
+    if (newQty <= 0) {
+      delete cart[id];
+    } else if (newQty > cart[id].stock) {
+      showAlert(`재고가 부족합니다 (최대 ${cart[id].stock}개)`);
+      return;
+    } else {
+      cart[id].qty = newQty;
+    }
+    renderCart();
+  }
+
+  function clearCart() {
+    cart = {};
+    renderCart();
+  }
+
+  function renderCart() {
+    const listEl = document.getElementById('cart-list');
+    const totalEl = document.getElementById('cart-total-val');
+    const keys = Object.keys(cart);
+
+    if (keys.length === 0) {
+      listEl.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 3rem 0;">장바구니가 비어 있습니다.<br>상품을 담아주세요.</div>`;
+      totalEl.innerText = "0";
+      return;
+    }
+
+    let total = 0;
+    let html = '';
+    keys.forEach(id => {
+      const item = cart[id];
+      const subtotal = item.price * item.qty;
+      total += subtotal;
+      html += `
+        <div class="cart-item">
+          <div>
+            <div style="font-weight: 700; font-size: 0.95rem;">${item.name}</div>
+            <div style="font-size: 0.82rem; color: #d97706;">${item.price} 달란트 × ${item.qty} = ${subtotal}</div>
+          </div>
+          <div class="qty-control">
+            <button class="qty-btn" onclick="updateQty(${item.id}, -1)">-</button>
+            <span style="font-weight: 700; width: 24px; text-align: center;">${item.qty}</span>
+            <button class="qty-btn" onclick="updateQty(${item.id}, 1)">+</button>
+          </div>
+        </div>
+      `;
+    });
+
+    listEl.innerHTML = html;
+    totalEl.innerText = total;
+  }
+
+  function attemptCheckout() {
+    if (!studentData) {
+      openLoginModal();
+      return;
+    }
+    const keys = Object.keys(cart);
+    if (keys.length === 0) {
+      showAlert("장바구니에 담긴 물품이 없습니다.");
+      return;
+    }
+
+    let total = 0;
+    keys.forEach(id => { total += cart[id].price * cart[id].qty; });
+
+    // 잔액 부족 검증 (요구사항 11)
+    if (total > studentData.current_talent) {
+      showAlert(`달란트가 부족합니다! (보유: ${studentData.current_talent}달란트, 필요: ${total}달란트)`);
+      return;
+    }
+
+    document.getElementById('confirm-total-val').innerText = total;
+    document.getElementById('checkout-error').style.display = 'none';
+    document.getElementById('confirm-password').value = '';
+    document.getElementById('pw-confirm-modal').classList.add('show');
+    document.getElementById('confirm-password').focus();
+  }
+
+  function closePwModal() {
+    document.getElementById('pw-confirm-modal').classList.remove('show');
+  }
+
+  async function executeCheckout(e) {
+    e.preventDefault();
+    const pw = document.getElementById('confirm-password').value;
+    const items = Object.keys(cart).map(id => ({
+      item_id: parseInt(id),
+      quantity: cart[id].qty
+    }));
+
+    try {
+      const res = await fetch('/kiosk/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student_id: studentData.id,
+          password: pw,
+          items: items
+        })
+      });
+      const data = await res.json();
+      if (!data.success) {
+        const errEl = document.getElementById('checkout-error');
+        errEl.innerText = data.message;
+        errEl.style.display = 'block';
+        return;
+      }
+
+      // 결제 성공
+      closePwModal();
+      cart = {};
+      renderCart();
+
+      // 영수증 모달 표출
+      document.getElementById('receipt-remaining-val').innerText = data.remaining_talent;
+      document.getElementById('receipt-order-no').innerText = `주문번호: ${data.order_number}`;
+      document.getElementById('receipt-modal').classList.add('show');
+
+      // 5초 카운트다운 자동 로그아웃
+      let count = 5;
+      const timerEl = document.getElementById('auto-logout-timer');
+      const interval = setInterval(() => {
+        count--;
+        if (timerEl) timerEl.innerText = count;
+        if (count <= 0) {
+          clearInterval(interval);
+          location.href = '/kiosk/logout';
+        }
+      }, 1000);
+
+    } catch (err) {
+      showAlert("서버 통신 오류가 발생했습니다.");
+    }
+  }
+
+  function openLoginModal() {
+    document.getElementById('login-modal').classList.add('show');
+    document.getElementById('login-student-code').focus();
+  }
+
+  function closeLoginModal() {
+    document.getElementById('login-modal').classList.remove('show');
+  }
+
+  async function handleKioskLogin(e) {
+    e.preventDefault();
+    const code = document.getElementById('login-student-code').value;
+    const pw = document.getElementById('login-password').value;
+
+    const fd = new FormData();
+    fd.append('student_code', code);
+    fd.append('password', pw);
+
+    const res = await fetch('/kiosk/login', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!data.success) {
+      const err = document.getElementById('login-error');
+      err.innerText = data.message;
+      err.style.display = 'block';
+      return;
+    }
+    location.reload();
+  }
+</script>
+{% endblock %}

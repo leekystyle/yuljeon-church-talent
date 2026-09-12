@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}달란트 지급 기준 관리 - 율전중앙교회 달란트{% endblock %}
+
+{% block content %}
+<div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.8rem;">
+  <a href="/admin/dashboard" class="btn btn-sm btn-outline">📊 활동 대시보드</a>
+  <a href="/admin/students" class="btn btn-sm btn-outline">👥 학생 관리/승인</a>
+  <a href="/admin/talent/grant" class="btn btn-sm btn-outline">🪙 달란트 실적 지급</a>
+  <a href="/admin/talent/rules" class="btn btn-sm btn-primary">📜 지급 기준 관리</a>
+  <a href="/admin/items" class="btn btn-sm btn-outline">🛍️ 매점 물품/재고</a>
+  <a href="/admin/orders" class="btn btn-sm btn-outline">🔄 구매내역 수정/반품</a>
+  <a href="/admin/annual_reset" class="btn btn-sm btn-outline">⏳ 연간 총괄 초기화</a>
+  <a href="/auth/admin/logout" class="btn btn-sm btn-danger" style="margin-left: auto;">로그아웃</a>
+</div>
+
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+  <div>
+    <h2 style="font-size: 1.7rem; font-weight: 800; color: #1e3a8a;">달란트 지급 기준 관리 (CRUD)</h2>
+    <p style="color: var(--text-muted); font-size: 0.95rem;">
+      새로운 지급 활동 기준을 등록하거나 수정/삭제할 수 있습니다. (학생 포털에 자동 공개)
+    </p>
+  </div>
+  <button class="btn btn-primary" onclick="openRuleModal()">
+    + 신규 지급 기준 추가
+  </button>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="styled-table">
+      <thead>
+        <tr>
+          <th>코드</th>
+          <th>분류</th>
+          <th>지급 항목명</th>
+          <th>지급 달란트</th>
+          <th>상세 규칙 설명</th>
+          <th>공개 여부</th>
+          <th>관리</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rules %}
+        <tr>
+          <td><code>{{ r.rule_code }}</code></td>
+          <td><span class="badge badge-primary">{{ r.category }}</span></td>
+          <td><strong>{{ r.title }}</strong></td>
+          <td style="color: #059669; font-weight: 800; font-size: 1.05rem;">+{{ r.points }} 달란트</td>
+          <td style="color: #475569;">{{ r.description or '-' }}</td>
+          <td>
+            {% if r.is_public %}
+            <span class="badge badge-success">공개</span>
+            {% else %}
+            <span class="badge badge-warning">비공개</span>
+            {% endif %}
+          </td>
+          <td>
+            <form action="/admin/talent/rules/{{ r.id }}/delete" method="POST" onsubmit="return confirm('이 지급 기준을 삭제하시겠습니까?');">
+              <button type="submit" class="btn btn-sm btn-danger">삭제</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- 기준 추가 모달 -->
+<div id="rule-modal" class="modal-backdrop">
+  <div class="modal-content">
+    <h3 style="margin-bottom: 0.4rem; color: #1e3a8a;">신규 달란트 지급 기준 등록</h3>
+    <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1.2rem;">
+      등록된 기준은 달란트 실적 지급 시 간편 선택할 수 있고 학생들도 열람할 수 있습니다.
+    </p>
+
+    <form action="/admin/talent/rules/create" method="POST">
+      <div class="form-group">
+        <label class="form-label" for="rule-title">활동 항목명 <span style="color: red;">*</span></label>
+        <input type="text" id="rule-title" name="title" class="form-control" placeholder="예: 주일예배 출석, 성경 통독" required>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem;">
+        <div class="form-group">
+          <label class="form-label" for="rule-category">분류</label>
+          <select id="rule-category" name="category" class="form-control" required>
+            <option value="예배">예배</option>
+            <option value="전도">전도</option>
+            <option value="봉사">봉사</option>
+            <option value="암송">암송</option>
+            <option value="특별">특별</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="rule-points">지급 달란트 <span style="color: red;">*</span></label>
+          <input type="number" id="rule-points" name="points" class="form-control" placeholder="예: 2" min="1" max="100" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="rule-desc">상세 규칙 설명</label>
+        <textarea id="rule-desc" name="description" class="form-control" rows="3" placeholder="구체적인 지급 조건과 규칙을 입력하세요."></textarea>
+      </div>
+
+      <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+        <button type="button" class="btn btn-outline" style="flex: 1;" onclick="closeRuleModal()">취소</button>
+        <button type="submit" class="btn btn-primary" style="flex: 2;">기준 등록 완료</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function openRuleModal() { document.getElementById('rule-modal').classList.add('show'); }
+  function closeRuleModal() { document.getElementById('rule-modal').classList.remove('show'); }
+</script>
+{% endblock %}

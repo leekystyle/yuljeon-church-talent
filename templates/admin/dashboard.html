@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}관리자 대시보드 - 율전중앙교회 달란트{% endblock %}
+
+{% block content %}
+<!-- 관리자 서브 네비게이션 바 -->
+<div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.8rem;">
+  <a href="/admin/dashboard" class="btn btn-sm btn-primary">📊 활동 대시보드</a>
+  <a href="/admin/students" class="btn btn-sm btn-outline">👥 학생 관리/승인</a>
+  <a href="/admin/talent/grant" class="btn btn-sm btn-outline">🪙 달란트 실적 지급</a>
+  <a href="/admin/talent/rules" class="btn btn-sm btn-outline">📜 지급 기준 관리</a>
+  <a href="/admin/items" class="btn btn-sm btn-outline">🛍️ 매점 물품/재고</a>
+  <a href="/admin/orders" class="btn btn-sm btn-outline">🔄 구매내역 수정/반품</a>
+  <a href="/admin/annual_reset" class="btn btn-sm btn-outline">⏳ 연간 총괄 초기화</a>
+  <a href="/auth/admin/logout" class="btn btn-sm btn-danger" style="margin-left: auto;">로그아웃</a>
+</div>
+
+<div style="margin-bottom: 1.5rem;">
+  <h2 style="font-size: 1.7rem; font-weight: 800; color: #1e3a8a;">교회학교 달란트 통합 현황 대시보드</h2>
+  <p style="color: var(--text-muted); font-size: 0.95rem;">학생들의 전체 달란트 획득 및 매점 사용 실적 통계입니다.</p>
+</div>
+
+<!-- 통계 요약 카드 그리드 (요구사항 7) -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+  <div class="card" style="border-left: 5px solid #3b82f6;">
+    <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 700;">전체 등록 학생 수</div>
+    <div style="font-size: 2rem; font-weight: 800; color: #1e40af; margin-top: 0.3rem;">
+      {{ total_students }}명
+    </div>
+    <div style="font-size: 0.8rem; color: #64748b; margin-top: 0.2rem;">
+      승인: {{ active_students }}명 / 대기: <span style="color: #ea580c; font-weight: 700;">{{ pending_students }}명</span>
+    </div>
+  </div>
+
+  <div class="card" style="border-left: 5px solid #10b981;">
+    <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 700;">누적 획득 달란트 총액</div>
+    <div style="font-size: 2rem; font-weight: 800; color: #059669; margin-top: 0.3rem;">
+      {{ total_earned }} <span style="font-size: 1rem;">달란트</span>
+    </div>
+    <div style="font-size: 0.8rem; color: #64748b; margin-top: 0.2rem;">전체 학생 지급 총합</div>
+  </div>
+
+  <div class="card" style="border-left: 5px solid #ef4444;">
+    <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 700;">누적 사용 달란트 총액</div>
+    <div style="font-size: 2rem; font-weight: 800; color: #dc2626; margin-top: 0.3rem;">
+      {{ total_spent }} <span style="font-size: 1rem;">달란트</span>
+    </div>
+    <div style="font-size: 0.8rem; color: #64748b; margin-top: 0.2rem;">매점 결제 차감 총합</div>
+  </div>
+
+  <div class="card" style="border-left: 5px solid #f59e0b;">
+    <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 700;">현재 유통 잔여 달란트</div>
+    <div style="font-size: 2rem; font-weight: 800; color: #d97706; margin-top: 0.3rem;">
+      {{ total_circulating }} <span style="font-size: 1rem;">달란트</span>
+    </div>
+    <div style="font-size: 0.8rem; color: #64748b; margin-top: 0.2rem;">학생 보유 잔액 총계</div>
+  </div>
+</div>
+
+<!-- 실시간 최근 활동 내역 -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+  <!-- 최근 달란트 지급 실적 -->
+  <div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
+      <h3 style="font-size: 1.15rem; font-weight: 700; color: #1e293b;">최근 실적 지급 로그</h3>
+      <a href="/admin/talent/grant" class="btn btn-sm btn-primary">+ 달란트 지급하기</a>
+    </div>
+    <div class="table-responsive">
+      <table class="styled-table">
+        <thead>
+          <tr>
+            <th>학생</th>
+            <th>사유</th>
+            <th>교사</th>
+            <th style="text-align: right;">지급</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in recent_earnings %}
+          <tr>
+            <td>
+              <div style="display: flex; align-items: center; gap: 0.4rem;">
+                <img src="{{ e.student.photo_url or '/static/uploads/profiles/default_avatar.svg' }}" style="width: 24px; height: 24px; border-radius: 50%;">
+                <strong>{{ e.student.name }}</strong>
+              </div>
+            </td>
+            <td>{{ e.reason }}</td>
+            <td>{{ e.granted_by }}</td>
+            <td style="text-align: right; color: #059669; font-weight: 700;">+{{ e.points }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 최근 매점 구매 내역 -->
+  <div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
+      <h3 style="font-size: 1.15rem; font-weight: 700; color: #1e293b;">최근 매점 결제 로그</h3>
+      <a href="/admin/orders" class="btn btn-sm btn-outline">주문 관리/수정</a>
+    </div>
+    <div class="table-responsive">
+      <table class="styled-table">
+        <thead>
+          <tr>
+            <th>학생</th>
+            <th>구매 품목</th>
+            <th>상태</th>
+            <th style="text-align: right;">결제</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for o in recent_orders %}
+          <tr>
+            <td>
+              <div style="display: flex; align-items: center; gap: 0.4rem;">
+                <img src="{{ o.student.photo_url or '/static/uploads/profiles/default_avatar.svg' }}" style="width: 24px; height: 24px; border-radius: 50%;">
+                <strong>{{ o.student.name }}</strong>
+              </div>
+            </td>
+            <td>
+              {% for it in o.items %}
+              {{ it.item_name }} ({{ it.quantity }}개){% if not loop.last %}, {% endif %}
+              {% endfor %}
+            </td>
+            <td>
+              {% if o.status == 'COMPLETED' %}
+              <span class="badge badge-success">완료</span>
+              {% else %}
+              <span class="badge badge-danger">환불</span>
+              {% endif %}
+            </td>
+            <td style="text-align: right; color: #dc2626; font-weight: 700;">-{{ o.total_points }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

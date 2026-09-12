@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <defs>
+    <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10B981"/>
+      <stop offset="100%" stop-color="#065F46"/>
+    </linearGradient>
+  </defs>
+  <circle cx="60" cy="60" r="58" fill="url(#g2)" stroke="#A7F3D0" stroke-width="3"/>
+  <circle cx="60" cy="46" r="22" fill="#FED7AA"/>
+  <path d="M26 100 C30 75, 90 75, 94 100 Z" fill="#D1FAE5"/>
+  <text x="60" y="52" font-family="sans-serif" font-size="14" font-weight="bold" fill="#9A3412" text-anchor="middle">종우</text>
+</svg>

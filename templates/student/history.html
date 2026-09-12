@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}달란트 상세 내역 - {{ student.name }} 학생{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+  <div>
+    <span class="badge badge-primary">{{ student.name }} 학생 (ID: {{ student.student_code }})</span>
+    <h2 style="font-size: 1.6rem; font-weight: 800; color: #1e3a8a; margin-top: 0.3rem;">달란트 세부 획득 및 사용 내역</h2>
+  </div>
+  <a href="/student/dashboard" class="btn btn-outline">⬅ 대시보드로 돌아가기</a>
+</div>
+
+<!-- 획득 세부 내역 -->
+<div class="card" style="margin-bottom: 2rem;">
+  <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+    <span style="font-size: 1.4rem;">📈</span>
+    <h3 style="font-size: 1.25rem; font-weight: 700; color: #059669;">달란트 획득(적립) 세부 내역 (총 {{ earnings|length }}건)</h3>
+  </div>
+
+  {% if earnings %}
+  <div class="table-responsive">
+    <table class="styled-table">
+      <thead>
+        <tr>
+          <th>번호</th>
+          <th>지급 일시(KST)</th>
+          <th>활동 내용 및 사유</th>
+          <th>지급 교사</th>
+          <th style="text-align: right;">적립 달란트</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in earnings %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td>{{ e.created_at.strftime('%Y-%m-%d %H:%M:%S') if e.created_at else '' }}</td>
+          <td>
+            <strong>{{ e.reason }}</strong>
+            {% if e.rule %}<span class="badge badge-primary" style="margin-left: 0.4rem;">{{ e.rule.category }}</span>{% endif %}
+          </td>
+          <td>{{ e.granted_by }}</td>
+          <td style="text-align: right; color: #059669; font-weight: 800; font-size: 1.05rem;">+{{ e.points }} 달란트</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p style="text-align: center; color: var(--text-muted); padding: 2rem 0;">획득 내역이 없습니다.</p>
+  {% endif %}
+</div>
+
+<!-- 사용 세부 내역 -->
+<div class="card">
+  <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+    <span style="font-size: 1.4rem;">🛍️</span>
+    <h3 style="font-size: 1.25rem; font-weight: 700; color: #dc2626;">매점 사용(차감) 세부 내역 (총 {{ orders|length }}건)</h3>
+  </div>
+
+  {% if orders %}
+  <div class="table-responsive">
+    <table class="styled-table">
+      <thead>
+        <tr>
+          <th>주문번호</th>
+          <th>구매 일시(KST)</th>
+          <th>구매 물품 및 수량</th>
+          <th>주문 상태</th>
+          <th style="text-align: right;">차감 달란트</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for o in orders %}
+        <tr>
+          <td style="font-family: monospace; font-size: 0.85rem;">{{ o.order_number }}</td>
+          <td>{{ o.created_at.strftime('%Y-%m-%d %H:%M:%S') if o.created_at else '' }}</td>
+          <td>
+            {% for it in o.items %}
+            <span style="display: inline-block; background: #f1f5f9; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.85rem; margin: 0.1rem;">
+              {{ it.item_name }} ({{ it.quantity }}개 / {{ it.subtotal_points }}달란트)
+            </span>
+            {% endfor %}
+          </td>
+          <td>
+            {% if o.status == 'COMPLETED' %}
+            <span class="badge badge-success">결제완료</span>
+            {% elif o.status == 'REFUNDED' %}
+            <span class="badge badge-danger">반품/환불</span>
+            {% else %}
+            <span class="badge badge-warning">{{ o.status }}</span>
+            {% endif %}
+          </td>
+          <td style="text-align: right; color: #dc2626; font-weight: 800; font-size: 1.05rem;">-{{ o.total_points }} 달란트</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p style="text-align: center; color: var(--text-muted); padding: 2rem 0;">사용 내역이 없습니다.</p>
+  {% endif %}
+</div>
+{% endblock %}

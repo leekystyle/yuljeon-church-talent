@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}마이 달란트 - {{ student.name }} 학생{% endblock %}
+
+{% block content %}
+<!-- 학생 상단 프로필 헤더 카드 -->
+<div class="card" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 2rem;">
+  <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1.5rem;">
+    <div style="display: flex; align-items: center; gap: 1.2rem;">
+      <img src="{{ student.photo_url or '/static/uploads/profiles/default_avatar.svg' }}" alt="{{ student.name }}" style="width: 80px; height: 80px; border-radius: 50%; border: 3px solid #fef08a; background: white; object-fit: cover;">
+      <div>
+        <span class="badge badge-warning" style="margin-bottom: 0.3rem;">{{ student.department or '교회학교' }}</span>
+        <h1 style="font-size: 1.8rem; font-weight: 800;">{{ student.name }} 학생</h1>
+        <p style="opacity: 0.9; font-size: 0.9rem;">고유 ID: <strong>{{ student.student_code }}</strong></p>
+      </div>
+    </div>
+    <div style="display: flex; gap: 0.6rem;">
+      <a href="/kiosk" class="btn btn-accent">🛒 매점 키오스크 이동</a>
+      <a href="/auth/student/logout" class="btn btn-outline" style="background: rgba(255,255,255,0.15); color: white; border-color: rgba(255,255,255,0.3);">로그아웃</a>
+    </div>
+  </div>
+</div>
+
+<!-- 3대 달란트 요약 카드 (요구사항 5) -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.2rem; margin-bottom: 2rem;">
+  <!-- 현재 보유 잔여 달란트 -->
+  <div class="card" style="border-left: 5px solid #f59e0b; padding: 1.5rem;">
+    <div style="font-size: 0.9rem; color: var(--text-muted); font-weight: 600;">🪙 현재 보유 잔여 달란트</div>
+    <div style="font-size: 2.3rem; font-weight: 800; color: #d97706; margin-top: 0.3rem;">
+      {{ student.current_talent }} <span style="font-size: 1.2rem; font-weight: 600;">달란트</span>
+    </div>
+  </div>
+
+  <!-- 총 획득 달란트 -->
+  <div class="card" style="border-left: 5px solid #10b981; padding: 1.5rem;">
+    <div style="font-size: 0.9rem; color: var(--text-muted); font-weight: 600;">📈 그동안 획득한 달란트 총액</div>
+    <div style="font-size: 2.3rem; font-weight: 800; color: #059669; margin-top: 0.3rem;">
+      {{ student.total_earned }} <span style="font-size: 1.2rem; font-weight: 600;">달란트</span>
+    </div>
+  </div>
+
+  <!-- 총 사용한 달란트 -->
+  <div class="card" style="border-left: 5px solid #ef4444; padding: 1.5rem;">
+    <div style="font-size: 0.9rem; color: var(--text-muted); font-weight: 600;">🛍️ 그동안 사용한 달란트 총액</div>
+    <div style="font-size: 2.3rem; font-weight: 800; color: #dc2626; margin-top: 0.3rem;">
+      {{ student.total_spent }} <span style="font-size: 1.2rem; font-weight: 600;">달란트</span>
+    </div>
+  </div>
+</div>
+
+<!-- 최근 내역 그리드 -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+  <!-- 최근 적립 내역 -->
+  <div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+      <h3 style="font-size: 1.15rem; font-weight: 700; color: #1e293b;">최근 달란트 적립</h3>
+      <a href="/student/history" style="font-size: 0.85rem; color: var(--primary); text-decoration: none; font-weight: 600;">전체보기 ➔</a>
+    </div>
+    {% if recent_earnings %}
+    <div class="table-responsive">
+      <table class="styled-table">
+        <thead>
+          <tr>
+            <th>일자</th>
+            <th>지급 사유</th>
+            <th>달란트</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in recent_earnings %}
+          <tr>
+            <td>{{ e.created_at.strftime('%m-%d %H:%M') if e.created_at else '' }}</td>
+            <td>{{ e.reason }}</td>
+            <td style="color: #059669; font-weight: 700;">+{{ e.points }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p style="color: var(--text-muted); text-align: center; padding: 1.5rem 0;">아직 적립된 달란트 내역이 없습니다.</p>
+    {% endif %}
+  </div>
+
+  <!-- 최근 사용 내역 -->
+  <div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+      <h3 style="font-size: 1.15rem; font-weight: 700; color: #1e293b;">최근 매점 사용</h3>
+      <a href="/student/history" style="font-size: 0.85rem; color: var(--primary); text-decoration: none; font-weight: 600;">전체보기 ➔</a>
+    </div>
+    {% if recent_orders %}
+    <div class="table-responsive">
+      <table class="styled-table">
+        <thead>
+          <tr>
+            <th>구매 일시</th>
+            <th>구매 품목</th>
+            <th>차감 달란트</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for o in recent_orders %}
+          <tr>
+            <td>{{ o.created_at.strftime('%m-%d %H:%M') if o.created_at else '' }}</td>
+            <td>
+              {% for it in o.items %}
+              {{ it.item_name }} ({{ it.quantity }}개){% if not loop.last %}, {% endif %}
+              {% endfor %}
+            </td>
+            <td style="color: #dc2626; font-weight: 700;">-{{ o.total_points }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p style="color: var(--text-muted); text-align: center; padding: 1.5rem 0;">아직 매점에서 사용한 내역이 없습니다.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

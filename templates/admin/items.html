@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}매점 물품 관리 - 율전중앙교회 달란트{% endblock %}
+
+{% block content %}
+<div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.8rem;">
+  <a href="/admin/dashboard" class="btn btn-sm btn-outline">📊 활동 대시보드</a>
+  <a href="/admin/students" class="btn btn-sm btn-outline">👥 학생 관리/승인</a>
+  <a href="/admin/talent/grant" class="btn btn-sm btn-outline">🪙 달란트 실적 지급</a>
+  <a href="/admin/talent/rules" class="btn btn-sm btn-outline">📜 지급 기준 관리</a>
+  <a href="/admin/items" class="btn btn-sm btn-primary">🛍️ 매점 물품/재고</a>
+  <a href="/admin/orders" class="btn btn-sm btn-outline">🔄 구매내역 수정/반품</a>
+  <a href="/admin/annual_reset" class="btn btn-sm btn-outline">⏳ 연간 총괄 초기화</a>
+  <a href="/auth/admin/logout" class="btn btn-sm btn-danger" style="margin-left: auto;">로그아웃</a>
+</div>
+
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+  <div>
+    <h2 style="font-size: 1.7rem; font-weight: 800; color: #1e3a8a;">매점 판매 물품 및 재고 관리</h2>
+    <p style="color: var(--text-muted); font-size: 0.95rem;">
+      새로운 물품 등록, 판매 달란트 가격 책정 및 실시간 재고를 수정합니다.
+    </p>
+  </div>
+  <button class="btn btn-primary" onclick="openItemModal()">
+    + 신규 물품 등록
+  </button>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="styled-table">
+      <thead>
+        <tr>
+          <th>사진</th>
+          <th>상품코드</th>
+          <th>분류</th>
+          <th>상품명</th>
+          <th>가격(달란트)</th>
+          <th>현재 재고</th>
+          <th>상태</th>
+          <th>재고/단가 변경</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for it in items %}
+        <tr>
+          <td>
+            <img src="{{ it.image_url or '/static/images/ramen.svg' }}" alt="{{ it.name }}" style="width: 44px; height: 44px; object-fit: contain; background: #f8fafc; border-radius: 8px; border: 1px solid var(--border);">
+          </td>
+          <td><code>{{ it.item_code }}</code></td>
+          <td><span class="badge badge-primary">{{ it.category }}</span></td>
+          <td><strong>{{ it.name }}</strong></td>
+          <td style="color: #d97706; font-weight: 800; font-size: 1.05rem;">{{ it.price }} 달란트</td>
+          <td>
+            {% if it.stock > 0 %}
+            <strong style="color: #059669;">{{ it.stock }}개</strong>
+            {% else %}
+            <span style="color: #dc2626; font-weight: bold;">품절 (0개)</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if it.is_active %}
+            <span class="badge badge-success">판매중</span>
+            {% else %}
+            <span class="badge badge-danger">중지</span>
+            {% endif %}
+          </td>
+          <td>
+            <form action="/admin/items/{{ it.id }}/update_stock" method="POST" style="display: flex; gap: 0.4rem; align-items: center;">
+              <input type="number" name="price" value="{{ it.price }}" class="form-control" style="width: 75px; padding: 0.25rem 0.4rem;" title="가격" required> 달란트
+              <input type="number" name="stock" value="{{ it.stock }}" class="form-control" style="width: 70px; padding: 0.25rem 0.4rem;" title="재고" required> 개
+              <button type="submit" class="btn btn-sm btn-outline">저장</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- 물품 추가 모달 -->
+<div id="item-modal" class="modal-backdrop">
+  <div class="modal-content">
+    <h3 style="margin-bottom: 0.4rem; color: #1e3a8a;">신규 매점 물품 등록</h3>
+    <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1.2rem;">
+      등록된 물품은 매점 태블릿 키오스크 쇼핑몰에 즉시 진열됩니다.
+    </p>
+
+    <form action="/admin/items/create" method="POST" enctype="multipart/form-data">
+      <div class="form-group">
+        <label class="form-label" for="item-name">물품명 <span style="color: red;">*</span></label>
+        <input type="text" id="item-name" name="name" class="form-control" placeholder="예: 한강라면, CU 상품권" required>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem;">
+        <div class="form-group">
+          <label class="form-label" for="item-cat">카테고리</label>
+          <select id="item-cat" name="category" class="form-control">
+            <option value="먹거리">먹거리</option>
+            <option value="문화생활">문화생활</option>
+            <option value="문구/완구">문구/완구</option>
+            <option value="기타">기타</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="item-price">가격(달란트) <span style="color: red;">*</span></label>
+          <input type="number" id="item-price" name="price" class="form-control" placeholder="예: 4" min="1" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="item-stock">초기 재고 수량 <span style="color: red;">*</span></label>
+        <input type="number" id="item-stock" name="stock" class="form-control" placeholder="예: 50" min="0" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="item-img">상품 이미지 사진</label>
+        <input type="file" id="item-img" name="image" class="form-control" accept="image/*">
+      </div>
+
+      <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+        <button type="button" class="btn btn-outline" style="flex: 1;" onclick="closeItemModal()">취소</button>
+        <button type="submit" class="btn btn-primary" style="flex: 2;">물품 등록 완료</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function openItemModal() { document.getElementById('item-modal').classList.add('show'); }
+  function closeItemModal() { document.getElementById('item-modal').classList.remove('show'); }
+</script>
+{% endblock %}

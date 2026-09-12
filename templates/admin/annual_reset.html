@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}연간 달란트 총괄 초기화 - 율전중앙교회 달란트{% endblock %}
+
+{% block content %}
+<div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.8rem;">
+  <a href="/admin/dashboard" class="btn btn-sm btn-outline">📊 활동 대시보드</a>
+  <a href="/admin/students" class="btn btn-sm btn-outline">👥 학생 관리/승인</a>
+  <a href="/admin/talent/grant" class="btn btn-sm btn-outline">🪙 달란트 실적 지급</a>
+  <a href="/admin/talent/rules" class="btn btn-sm btn-outline">📜 지급 기준 관리</a>
+  <a href="/admin/items" class="btn btn-sm btn-outline">🛍️ 매점 물품/재고</a>
+  <a href="/admin/orders" class="btn btn-sm btn-outline">🔄 구매내역 수정/반품</a>
+  <a href="/admin/annual_reset" class="btn btn-sm btn-primary">⏳ 연간 총괄 초기화</a>
+  <a href="/auth/admin/logout" class="btn btn-sm btn-danger" style="margin-left: auto;">로그아웃</a>
+</div>
+
+<div style="max-width: 650px; margin: 0 auto 2rem;">
+  <div class="card" style="padding: 2.2rem 2rem; border-top: 5px solid #dc2626;">
+    <div style="text-align: center; margin-bottom: 1.5rem;">
+      <div style="font-size: 2.8rem; margin-bottom: 0.4rem;">⚠️</div>
+      <h2 style="color: #991b1b; font-weight: 800;">연간 달란트 총괄 초기화 (연 1회)</h2>
+      <p style="color: var(--text-muted); font-size: 0.92rem;">
+        교회학교 학년도 종료 시, 모든 학생의 <strong>현재 잔여 달란트를 0으로 일괄 리셋</strong>합니다.
+      </p>
+    </div>
+
+    {% if request.query_params.get('msg') == 'reset_completed' %}
+    <div class="alert alert-success">
+      ✓ 달란트 총괄 초기화가 완료되었습니다. 초기화 직전 잔여 달란트는 스냅샷 테이블로 안전하게 영구 백업되었습니다.
+    </div>
+    {% elif request.query_params.get('error') == 'invalid_password' %}
+    <div class="alert alert-danger">
+      ⚠️ 관리자 확인 비밀번호가 일치하지 않아 초기화가 취소되었습니다.
+    </div>
+    {% endif %}
+
+    <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: var(--radius-sm); padding: 1.2rem; margin-bottom: 1.5rem;">
+      <div style="font-size: 0.88rem; font-weight: 700; color: #991b1b; margin-bottom: 0.5rem;">📊 현재 초기화 대상 현황 요약</div>
+      <div style="display: flex; justify-content: space-around; text-align: center; margin-top: 0.8rem;">
+        <div>
+          <div style="font-size: 0.82rem; color: #7f1d1d;">달란트 보유 학생 수</div>
+          <div style="font-size: 1.6rem; font-weight: 800; color: #991b1b;">{{ active_count }}명</div>
+        </div>
+        <div>
+          <div style="font-size: 0.82rem; color: #7f1d1d;">소멸(초기화)될 잔여 달란트 합계</div>
+          <div style="font-size: 1.6rem; font-weight: 800; color: #dc2626;">{{ total_talent }} 달란트</div>
+        </div>
+      </div>
+    </div>
+
+    <form action="/admin/annual_reset" method="POST" onsubmit="return confirm('정말로 전교생의 달란트를 0으로 초기화하시겠습니까? 이 작업은 되돌릴 수 없으나 이전 잔액은 백업됩니다.');">
+      <div class="form-group">
+        <label class="form-label" for="admin-memo">초기화 비고/메모</label>
+        <input type="text" id="admin-memo" name="admin_memo" class="form-control" value="{{ current_year }}학년도 정기 달란트 총괄 초기화" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="admin-pw" style="color: #991b1b;">최종 확인: 관리자 비밀번호 (ADMIN_PW) 입력</label>
+        <input type="password" id="admin-pw" name="admin_pw" class="form-control" placeholder="관리자 비밀번호 재입력" required>
+      </div>
+
+      <button type="submit" class="btn btn-danger btn-lg" style="width: 100%; margin-top: 0.5rem;">
+        전체 학생 달란트 0으로 일괄 초기화 실행 ➔
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- 과거 초기화 이력 테이블 -->
+<div class="card">
+  <h3 style="font-size: 1.2rem; font-weight: 700; color: #1e293b; margin-bottom: 0.8rem;">
+    📜 과거 연간 초기화 이력 (영구 아카이빙)
+  </h3>
+  <div class="table-responsive">
+    <table class="styled-table">
+      <thead>
+        <tr>
+          <th>초기화 일시(KST)</th>
+          <th>대상 연도</th>
+          <th>대상 학생 수</th>
+          <th>소멸된 달란트 총액</th>
+          <th>관리자 메모</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in resets %}
+        <tr>
+          <td>{{ r.reset_at.strftime('%Y-%m-%d %H:%M:%S') if r.reset_at else '' }}</td>
+          <td><strong>{{ r.reset_year }}년</strong></td>
+          <td>{{ r.student_count }}명</td>
+          <td style="color: #dc2626; font-weight: 800;">{{ r.total_reset_points }} 달란트</td>
+          <td style="color: #475569;">{{ r.admin_memo or '-' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

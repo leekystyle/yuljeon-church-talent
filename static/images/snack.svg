@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <circle cx="50" cy="50" r="46" fill="#FCE7F3" stroke="#EC4899" stroke-width="2"/>
+  <!-- 과자 봉지 -->
+  <polygon points="32,25 68,25 62,80 38,80" fill="#F43F5E"/>
+  <polygon points="32,25 35,28 38,25 41,28 44,25 47,28 50,25 53,28 56,25 59,28 62,25 65,28 68,25" fill="#BE123C"/>
+  <circle cx="50" cy="52" r="10" fill="#FEF08A"/>
+  <text x="50" y="56" font-family="sans-serif" font-size="9" font-weight="bold" fill="#881337" text-anchor="middle">과자</text>
+</svg>

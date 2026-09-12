@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}관리자 로그인 - 율전중앙교회 달란트{% endblock %}
+
+{% block content %}
+<div style="max-width: 420px; margin: 2.5rem auto;">
+  <div class="card" style="padding: 2.5rem 2rem;">
+    <div style="text-align: center; margin-bottom: 1.5rem;">
+      <div style="font-size: 2.8rem; margin-bottom: 0.5rem;">⚙️</div>
+      <h2 style="color: #1e3a8a; font-weight: 800;">관리자 콘솔 로그인</h2>
+      <p style="color: var(--text-muted); font-size: 0.9rem;">
+        교사 및 교역자 전용 관리 시스템입니다.
+      </p>
+    </div>
+
+    {% if error == 'invalid_password' %}
+    <div class="alert alert-danger">
+      ⚠️ 관리자 비밀번호가 일치하지 않습니다.
+    </div>
+    {% endif %}
+
+    <form action="/auth/admin/login" method="POST">
+      <div class="form-group">
+        <label class="form-label" for="password">관리자 비밀번호 (ADMIN_PW)</label>
+        <input type="password" id="password" name="password" class="form-control" placeholder="비밀번호 입력 (기본값: 1234)" required autofocus>
+      </div>
+      <button type="submit" class="btn btn-primary btn-lg" style="width: 100%; margin-top: 0.5rem;">
+        관리자 접속 ➔
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}
