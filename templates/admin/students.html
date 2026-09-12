@@ -193,7 +193,23 @@
               <span style="font-size: 0.8rem; text-decoration: none;">↗</span>
             </a>
           </td>
-          <td><span class="badge badge-primary">{{ s.department or '미지정' }}</span></td>
+          <td>
+            {% if s.department == '유치부' or '유치' in (s.department or '') %}
+            <span class="badge" style="color: #b45309; background-color: #fef3c7; border: 1px solid #fde68a; font-weight: 700; font-size: 0.82rem; padding: 0.25rem 0.6rem; border-radius: 6px;">{{ s.department }}</span>
+            {% elif s.department == '아동부' or '아동' in (s.department or '') or '초등' in (s.department or '') %}
+            <span class="badge" style="color: #047857; background-color: #d1fae5; border: 1px solid #a7f3d0; font-weight: 700; font-size: 0.82rem; padding: 0.25rem 0.6rem; border-radius: 6px;">{{ s.department }}</span>
+            {% elif s.department == '청소년부' or '청소년' in (s.department or '') or '중등' in (s.department or '') or '고등' in (s.department or '') %}
+            <span class="badge" style="color: #6d28d9; background-color: #ede9fe; border: 1px solid #ddd6fe; font-weight: 700; font-size: 0.82rem; padding: 0.25rem 0.6rem; border-radius: 6px;">{{ s.department }}</span>
+            {% elif s.department == '청년부' or '청년' in (s.department or '') %}
+            <span class="badge" style="color: #0369a1; background-color: #e0f2fe; border: 1px solid #bae6fd; font-weight: 700; font-size: 0.82rem; padding: 0.25rem 0.6rem; border-radius: 6px;">{{ s.department }}</span>
+            {% elif s.department == '영아부' or s.department == '유아부' or '영유아' in (s.department or '') %}
+            <span class="badge" style="color: #be185d; background-color: #fce7f3; border: 1px solid #fbcfe8; font-weight: 700; font-size: 0.82rem; padding: 0.25rem 0.6rem; border-radius: 6px;">{{ s.department }}</span>
+            {% elif s.department %}
+            <span class="badge" style="color: #0f766e; background-color: #ccfbf1; border: 1px solid #99f6e4; font-weight: 700; font-size: 0.82rem; padding: 0.25rem 0.6rem; border-radius: 6px;">{{ s.department }}</span>
+            {% else %}
+            <span class="badge" style="color: #64748b; background-color: #f1f5f9; border: 1px solid #e2e8f0; font-weight: 600; font-size: 0.82rem; padding: 0.25rem 0.6rem; border-radius: 6px;">미지정</span>
+            {% endif %}
+          </td>
           <td>{{ s.age ~ '세' if s.age else '-' }} / {{ '남' if s.gender == 'M' else ('여' if s.gender == 'F' else '-') }}</td>
           <td>
             <div style="font-size: 0.85rem;">{{ s.phone or '-' }}</div>
