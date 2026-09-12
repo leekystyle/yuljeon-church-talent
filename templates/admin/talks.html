@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+
+{% block title %}달란트 톡톡 관리 - 율전중앙교회 달란트{% endblock %}
+
+{% block content %}
+<div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.8rem;">
+  <a href="/admin/dashboard" class="btn btn-sm btn-outline">📊 활동 대시보드</a>
+  <a href="/admin/students" class="btn btn-sm btn-outline">👥 학생 관리/승인</a>
+  <a href="/admin/talent/grant" class="btn btn-sm btn-outline">🪙 달란트 실적 지급</a>
+  <a href="/admin/talent/rules" class="btn btn-sm btn-outline">📜 지급 기준 관리</a>
+  <a href="/admin/items" class="btn btn-sm btn-outline">🛍️ 매점 물품/재고</a>
+  <a href="/admin/orders" class="btn btn-sm btn-outline">🔄 구매내역 수정/반품</a>
+  <a href="/admin/talks" class="btn btn-sm btn-primary">💬 달란트 톡톡</a>
+  <a href="/admin/settings" class="btn btn-sm btn-outline">⚙️ 환경 설정</a>
+  <a href="/admin/annual_reset" class="btn btn-sm btn-outline">⏳ 연간 총괄 초기화</a>
+  <a href="/kiosk" target="_blank" class="btn btn-sm btn-accent" style="font-weight: 700;">🛒 매점 키오스크 ↗</a>
+  <a href="/auth/admin/logout" class="btn btn-sm btn-danger" style="margin-left: auto;">로그아웃</a>
+</div>
+
+<div style="margin-bottom: 1.5rem;">
+  <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem;">
+    <div>
+      <h2 style="font-size: 1.7rem; font-weight: 800; color: #1e3a8a; margin: 0 0 0.3rem 0;">💬 달란트 톡톡 (소통 공간) 관리</h2>
+      <p style="color: var(--text-muted); font-size: 0.95rem; margin: 0;">
+        학생 포털 하단에서 아이들이 작성한 한줄글(100자 이내)을 모니터링하고, 부적절하거나 욕설이 포함된 글을 실명 기반으로 삭제·관리합니다.
+      </p>
+    </div>
+    <div style="display: flex; gap: 0.5rem;">
+      <span class="badge" style="background: #e0e7ff; color: #3730a3; font-weight: 700; padding: 6px 12px; font-size: 0.9rem;">전체 {{ total_count }}건</span>
+      <span class="badge" style="background: #dcfce7; color: #166534; font-weight: 700; padding: 6px 12px; font-size: 0.9rem;">게시중 {{ active_count }}건</span>
+      <span class="badge" style="background: #fee2e2; color: #991b1b; font-weight: 700; padding: 6px 12px; font-size: 0.9rem;">삭제됨 {{ deleted_count }}건</span>
+    </div>
+  </div>
+</div>
+
+{% if request.query_params.get('msg') == 'deleted' %}
+<div class="alert alert-success">✓ 해당 글이 관리자 삭제 처리되었습니다. 학생 화면에서는 '관리자 삭제 안내'로 표출되며 감사 이력이 영구 보존됩니다.</div>
+{% elif request.query_params.get('msg') == 'restored' %}
+<div class="alert alert-success">✓ 삭제되었던 글이 정상적으로 복구되었습니다.</div>
+{% elif request.query_params.get('error') %}
+<div class="alert alert-danger">⚠️ 처리 실패: {{ request.query_params.get('error') }}</div>
+{% endif %}
+
+<!-- 검색 및 상태 필터 카드 -->
+<div class="card" style="margin-bottom: 1.5rem; background: #ffffff; border-top: 4px solid #3b82f6;">
+  <form method="GET" action="/admin/talks" style="display: flex; gap: 0.8rem; align-items: flex-end; flex-wrap: wrap;">
+    <div style="flex: 1; min-width: 250px;">
+      <label class="form-label" style="font-size: 0.88rem; color: #1e3a8a; font-weight: 700;">🔍 검색어 (글 내용 / 학생 이름 / 학번 / 삭제자)</label>
+      <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="예: 암송, 김도현, S001..." style="font-size: 0.92rem;">
+    </div>
+
+    <div style="width: 170px;">
+      <label class="form-label" style="font-size: 0.88rem; color: #1e3a8a; font-weight: 700;">상태 필터</label>
+      <select name="filter_status" class="form-control" onchange="this.form.submit()" style="font-size: 0.92rem;">
+        <option value="all" {% if filter_status == 'all' %}selected{% endif %}>전체 보기</option>
+        <option value="active" {% if filter_status == 'active' %}selected{% endif %}>게시중 (정상 글)</option>
+        <option value="deleted" {% if filter_status == 'deleted' %}selected{% endif %}>관리자 삭제 글</option>
+      </select>
+    </div>
+
+    <div style="display: flex; gap: 0.4rem;">
+      <button type="submit" class="btn btn-primary" style="padding: 0.65rem 1.2rem; font-weight: 700;">조회하기</button>
+      {% if q or filter_status != 'all' %}
+      <a href="/admin/talks" class="btn btn-outline" style="padding: 0.65rem 1rem;">초기화</a>
+      {% endif %}
+    </div>
+  </form>
+</div>
+
+<!-- 톡톡 목록 테이블 -->
+<div class="card">
+  <div class="table-responsive">
+    <table class="styled-table" style="font-size: 0.9rem;">
+      <thead>
+        <tr>
+          <th style="width: 60px; text-align: center;">ID</th>
+          <th style="width: 130px;">작성 일시</th>
+          <th style="width: 180px;">작성 학생</th>
+          <th>글 내용 (최대 100자)</th>
+          <th style="width: 110px; text-align: center;">게시 상태</th>
+          <th style="width: 160px; text-align: center;">관리 조치</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in talks %}
+        <tr style="{% if t.is_deleted %}background: #fdf2f2; color: #64748b;{% endif %}">
+          <td style="text-align: center;"><code style="font-size: 0.82rem;">#{{ t.id }}</code></td>
+          <td style="font-size: 0.85rem; color: #64748b;">{{ t.created_at.strftime('%m-%d %H:%M') if t.created_at else '' }}</td>
+          <td>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <img src="{{ t.student.photo_url or '/static/uploads/profiles/default_avatar.svg' }}" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1px solid #cbd5e1;">
+              <div>
+                <strong style="color: #1e293b;">{{ t.student.name }}</strong>
+                <span style="font-size: 0.78rem; color: #64748b; display: block;">{{ t.student.department or '교회학교' }} ({{ t.student.student_code }})</span>
+              </div>
+            </div>
+          </td>
+          <td>
+            <div style="font-size: 0.92rem; font-weight: {% if t.is_deleted %}normal{% else %}600{% endif %}; {% if t.is_deleted %}text-decoration: line-through; color: #94a3b8;{% else %}color: #1e293b;{% endif %}">
+              {{ t.content }}
+            </div>
+            {% if t.is_deleted %}
+            <div style="margin-top: 4px; font-size: 0.8rem; color: #b91c1c; background: #fee2e2; padding: 2px 8px; border-radius: 4px; display: inline-block;">
+              🚫 삭제자: <strong>{{ t.deleted_by or '관리자' }}</strong> ({{ t.deleted_at.strftime('%m-%d %H:%M') if t.deleted_at else '' }}) | 사유: {{ t.delete_reason or '부적절한 내용' }}
+            </div>
+            {% endif %}
+          </td>
+          <td style="text-align: center;">
+            {% if t.is_deleted %}
+            <span class="badge badge-danger">삭제됨</span>
+            {% else %}
+            <span class="badge badge-success">정상 게시</span>
+            {% endif %}
+          </td>
+          <td style="text-align: center;">
+            {% if not t.is_deleted %}
+            <button type="button" class="btn btn-sm btn-danger" style="padding: 0.25rem 0.6rem; font-size: 0.8rem; font-weight: 700;" onclick='openDeleteTalkModal({{ t.id }}, {{ t.student.name | tojson }}, {{ t.content | tojson }})'>
+              🗑️ 관리자 삭제
+            </button>
+            {% else %}
+            <form method="POST" action="/admin/talks/{{ t.id }}/restore" style="display: inline;" onsubmit="return confirm('이 글을 다시 정상 게시 상태로 복구하시겠습니까?');">
+              <button type="submit" class="btn btn-sm btn-outline" style="padding: 0.25rem 0.6rem; font-size: 0.8rem; color: #059669; border-color: #059669;">
+                ↺ 복구
+              </button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2.5rem;">
+            등록된 달란트 톡톡 글이 없습니다.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- 관리자 삭제 처리 모달 (삭제 담당자 성명 필수 입력) -->
+<div id="delete-talk-modal" class="modal-backdrop">
+  <div class="modal-content" style="max-width: 480px; width: 95%;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+      <h3 style="margin: 0; color: #dc2626; font-size: 1.3rem;">🗑️ 부적절 글 관리자 삭제</h3>
+      <button type="button" onclick="closeDeleteTalkModal()" style="background: none; border: none; font-size: 1.3rem; cursor: pointer; color: #64748b;">✕</button>
+    </div>
+    <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1.2rem;">
+      욕설이나 부적절한 글을 삭제 처리합니다. 학생 화면에는 삭제 안내 및 담당자 실명이 표출됩니다.
+    </p>
+
+    <form id="delete-talk-form" method="POST" onsubmit="return validateDeleteTalkForm(event)">
+      <!-- 대상 글 요약 -->
+      <div style="background: #fee2e2; border: 1px solid #fca5a5; border-radius: 8px; padding: 0.9rem; margin-bottom: 1.2rem;">
+        <div style="font-size: 0.85rem; color: #991b1b; margin-bottom: 0.3rem;">
+          작성자: <strong id="modal-talk-student"></strong>
+        </div>
+        <div style="font-size: 0.92rem; font-weight: 700; color: #7f1d1d; word-break: break-all;" id="modal-talk-content"></div>
+      </div>
+
+      <!-- 1. 삭제 처리 담당자 성명 입력 (필수) -->
+      <div class="form-group" style="margin-bottom: 1rem;">
+        <label class="form-label" for="talk-admin-name" style="color: #991b1b; font-weight: 800; display: flex; align-items: center; gap: 4px;">
+          👤 삭제 처리 담당자 성명 <span style="color: red;">*</span>
+        </label>
+        <input type="text" id="talk-admin-name" name="admin_name" class="form-control" placeholder="예: 김도현 교사, 박선생님 (필수 입력)" required style="font-weight: 600;">
+        <small style="color: #64748b; font-size: 0.78rem; display: block; margin-top: 0.2rem;">
+          ※ 관리자가 여러 명인 환경에서 누가 삭제했는지 파악할 수 있도록 실명을 기록합니다.
+        </small>
+      </div>
+
+      <!-- 2. 삭제 사유 선택/입력 -->
+      <div class="form-group" style="margin-bottom: 1.2rem;">
+        <label class="form-label" for="talk-delete-reason" style="font-weight: 700; color: #334155;">
+          삭제 사유
+        </label>
+        <select id="talk-delete-reason-select" class="form-control" style="margin-bottom: 0.4rem;" onchange="handleReasonSelect(this.value)">
+          <option value="욕설 및 비방">욕설 및 비방</option>
+          <option value="부적절한 장난/도배">부적절한 장난/도배</option>
+          <option value="개인정보 노출">개인정보 노출</option>
+          <option value="기타 사유">기타 사유 (직접 입력)</option>
+        </select>
+        <input type="text" id="talk-delete-reason" name="delete_reason" class="form-control" value="욕설 및 비방" placeholder="삭제 사유를 입력하세요">
+      </div>
+
+      <div style="display: flex; gap: 0.5rem;">
+        <button type="button" class="btn btn-outline" style="flex: 1;" onclick="closeDeleteTalkModal()">취소</button>
+        <button type="submit" class="btn btn-danger" style="flex: 2; font-weight: 700;">삭제 확정 실행</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function openDeleteTalkModal(talkId, studentName, content) {
+    document.getElementById('delete-talk-form').action = `/admin/talks/${talkId}/delete`;
+    document.getElementById('modal-talk-student').innerText = studentName;
+    document.getElementById('modal-talk-content').innerText = `"${content}"`;
+
+    const adminInput = document.getElementById('talk-admin-name');
+    const savedAdmin = localStorage.getItem('yuljeon_last_admin_name') || '';
+    adminInput.value = savedAdmin;
+
+    document.getElementById('delete-talk-modal').classList.add('show');
+  }
+
+  function closeDeleteTalkModal() {
+    document.getElementById('delete-talk-modal').classList.remove('show');
+  }
+
+  function handleReasonSelect(val) {
+    const reasonInput = document.getElementById('talk-delete-reason');
+    if (val === '기타 사유') {
+      reasonInput.value = '';
+      reasonInput.focus();
+    } else {
+      reasonInput.value = val;
+    }
+  }
+
+  function validateDeleteTalkForm(event) {
+    const adminInput = document.getElementById('talk-admin-name');
+    const adminName = (adminInput.value || '').trim();
+
+    if (!adminName) {
+      alert('삭제 처리를 진행하는 담당자 성명을 반드시 입력해 주세요.');
+      adminInput.focus();
+      event.preventDefault();
+      return false;
+    }
+
+    localStorage.setItem('yuljeon_last_admin_name', adminName);
+    return true;
+  }
+</script>
+{% endblock %}

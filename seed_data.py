@@ -12,7 +12,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from app.database import engine, Base, SessionLocal
 from app.models import (
     Student, TalentRule, TalentEarning, Item, Order, OrderItem, AnnualReset, AnnualSnapshot,
-    Department, RuleCategory, ItemCategory, OrderAdjustmentLog, SystemConfig, set_system_config
+    Department, RuleCategory, ItemCategory, OrderAdjustmentLog, SystemConfig, set_system_config,
+    TalentTalk
 )
 from sqlalchemy import text
 from app.timezone import get_kst_now
@@ -380,6 +381,34 @@ def init_db_and_seed():
                 description="매점 키오스크 로그인 세션 자동 로그아웃 대기 시간 (초)"
             )
             print("✓ [yuljeon-system_configs] 매점 키오스크 자동 로그아웃 기본 시간(10초) 등록 완료")
+
+        # 13. yuljeon-talent_talks 초기 한줄글 더미 데이터 (3건)
+        if db.query(TalentTalk).count() == 0:
+            first_student = db.query(Student).first()
+            if first_student:
+                sample_talks = [
+                    TalentTalk(
+                        student_id=first_student.id,
+                        content="오늘 말씀 암송 칭찬받아서 달란트 받았어요! 매점 간식 사러 가야지~ 😋",
+                        created_at=get_kst_now(),
+                        updated_at=get_kst_now()
+                    ),
+                    TalentTalk(
+                        student_id=first_student.id,
+                        content="새로 온 친구 전도해서 기뻐요! 달란트 세상 너무 신나요! 🎉",
+                        created_at=get_kst_now(),
+                        updated_at=get_kst_now()
+                    ),
+                    TalentTalk(
+                        student_id=first_student.id,
+                        content="선생님 항상 사랑으로 가르쳐 주셔서 감사해요! 모두 축복해요 ❤️",
+                        created_at=get_kst_now(),
+                        updated_at=get_kst_now()
+                    ),
+                ]
+                db.add_all(sample_talks)
+                db.commit()
+                print("✓ [yuljeon-talent_talks] 초기 달란트 톡톡 더미 데이터 3건 주입 완료")
 
         print("=== [3/3] 전체 테이블 초기화 및 시딩 완료! ===")
     finally:

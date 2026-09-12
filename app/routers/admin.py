@@ -12,7 +12,8 @@ from sqlalchemy import func
 from app.database import get_db
 from app.models import (
     Student, TalentRule, TalentEarning, Item, Order, OrderItem, AnnualReset, AnnualSnapshot,
-    Department, RuleCategory, ItemCategory, OrderAdjustmentLog, SystemConfig, get_system_config, set_system_config
+    Department, RuleCategory, ItemCategory, OrderAdjustmentLog, SystemConfig, get_system_config, set_system_config,
+    TalentTalk
 )
 from app.config import ADMIN_PW
 from app.timezone import get_kst_now
@@ -1476,4 +1477,97 @@ async def delete_item_category(cat_id: int, request: Request, db: Session = Depe
         db.delete(cat)
         db.commit()
     return RedirectResponse(url="/admin/settings?msg=item_cat_deleted#item-categories", status_code=status.HTTP_303_SEE_OTHER)
+
+
+# -------------------------------------------------------------
+# 12. 달란트 톡톡 (소통 공간) 관리
+# -------------------------------------------------------------
+@router.get("/talks", response_class=HTMLResponse)
+async def manage_talks(
+    request: Request,
+    q: Optional[str] = None,
+    filter_status: Optional[str] = "all",
+    db: Session = Depends(get_db)
+):
+    """달란트 톡톡 글 전체 모니터링 및 부적절한 글 관리자 삭제"""
+    check_admin(request)
+    query = db.query(TalentTalk)
+
+    if filter_status == "active":
+        query = query.filter(TalentTalk.is_deleted == False)
+    elif filter_status == "deleted":
+        query = query.filter(TalentTalk.is_deleted == True)
+
+    if q:
+        clean_q = q.strip()
+        query = query.join(Student).filter(
+            (TalentTalk.content.ilike(f"%{clean_q}%")) |
+            (Student.name.ilike(f"%{clean_q}%")) |
+            (Student.student_code.ilike(f"%{clean_q}%")) |
+            (TalentTalk.deleted_by.ilike(f"%{clean_q}%"))
+        )
+
+    talks = query.order_by(TalentTalk.created_at.desc()).all()
+    total_count = db.query(TalentTalk).count()
+    active_count = db.query(TalentTalk).filter(TalentTalk.is_deleted == False).count()
+    deleted_count = db.query(TalentTalk).filter(TalentTalk.is_deleted == True).count()
+
+    return templates.TemplateResponse("admin/talks.html", {
+        "request": request,
+        "talks": talks,
+        "q": q or "",
+        "filter_status": filter_status,
+        "total_count": total_count,
+        "active_count": active_count,
+        "deleted_count": deleted_count
+    })
+
+
+@router.post("/talks/{talk_id}/delete")
+async def delete_talk_by_admin(
+    talk_id: int,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """관리자 실명 입력 기반 부적절 글 삭제 (감사 이력 영구 보존)"""
+    check_admin(request)
+    form_data = await request.form()
+    admin_name = form_data.get("admin_name", "").strip()
+    delete_reason = form_data.get("delete_reason", "").strip() or "부적절한 내용 (관리자 조치)"
+
+    if not admin_name:
+        err = urllib.parse.quote("삭제 처리를 진행하는 담당자 성명을 반드시 입력해야 합니다.")
+        return RedirectResponse(url=f"/admin/talks?error={err}", status_code=status.HTTP_303_SEE_OTHER)
+
+    talk = db.query(TalentTalk).filter(TalentTalk.id == talk_id).first()
+    if talk:
+        talk.is_deleted = True
+        talk.deleted_by = admin_name
+        talk.deleted_by_role = "ADMIN"
+        talk.delete_reason = delete_reason
+        talk.deleted_at = get_kst_now()
+        db.commit()
+
+    return RedirectResponse(url="/admin/talks?msg=deleted", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/talks/{talk_id}/restore")
+async def restore_talk_by_admin(
+    talk_id: int,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """삭제된 글 관리자 원클릭 복구"""
+    check_admin(request)
+    talk = db.query(TalentTalk).filter(TalentTalk.id == talk_id).first()
+    if talk:
+        talk.is_deleted = False
+        talk.deleted_by = None
+        talk.deleted_by_role = None
+        talk.delete_reason = None
+        talk.deleted_at = None
+        db.commit()
+
+    return RedirectResponse(url="/admin/talks?msg=restored", status_code=status.HTTP_303_SEE_OTHER)
+
 

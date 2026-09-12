@@ -7,7 +7,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import Student, TalentRule, TalentEarning, Order, Item, OrderAdjustmentLog
+from app.models import Student, TalentRule, TalentEarning, Order, Item, OrderAdjustmentLog, TalentTalk
 from app.timezone import get_kst_now
 from app.image_utils import bytes_to_data_url
 
@@ -173,13 +173,91 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
     recent_adjustments = db.query(OrderAdjustmentLog).filter(OrderAdjustmentLog.student_id == student.id)\
         .order_by(OrderAdjustmentLog.adjusted_at.desc()).limit(3).all()
 
+    # 달란트 톡톡 최신 20건 (학생 화면에서는 정상 글과 관리자 삭제 글 모두 포함하되, 관리자 삭제 글은 삭제 안내로 렌더링)
+    talks = db.query(TalentTalk).order_by(TalentTalk.created_at.desc()).limit(20).all()
+
     return templates.TemplateResponse("student/dashboard.html", {
         "request": request,
         "student": student,
         "recent_earnings": recent_earnings,
         "recent_orders": recent_orders,
-        "recent_adjustments": recent_adjustments
+        "recent_adjustments": recent_adjustments,
+        "talks": talks
     })
+
+
+@router.post("/talks/create")
+async def create_talk(
+    request: Request,
+    content: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    """달란트 톡톡 새 글 등록 (최대 100자)"""
+    student = get_current_student(request, db)
+    if not student or not student.is_active:
+        return RedirectResponse(url="/student/login", status_code=status.HTTP_303_SEE_OTHER)
+
+    text = content.strip()
+    if not text:
+        return RedirectResponse(url="/student/dashboard?talk_error=empty#talent-tok-section", status_code=status.HTTP_303_SEE_OTHER)
+
+    if len(text) > 100:
+        text = text[:100]
+
+    new_talk = TalentTalk(
+        student_id=student.id,
+        content=text,
+        created_at=get_kst_now(),
+        updated_at=get_kst_now()
+    )
+    db.add(new_talk)
+    db.commit()
+    return RedirectResponse(url="/student/dashboard?talk_msg=created#talent-tok-section", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/talks/{talk_id}/update")
+async def update_talk(
+    talk_id: int,
+    request: Request,
+    content: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    """달란트 톡톡 본인 글 수정 (최대 100자)"""
+    student = get_current_student(request, db)
+    if not student:
+        return RedirectResponse(url="/student/login", status_code=status.HTTP_303_SEE_OTHER)
+
+    talk = db.query(TalentTalk).filter(TalentTalk.id == talk_id, TalentTalk.student_id == student.id).first()
+    if not talk or talk.is_deleted:
+        return RedirectResponse(url="/student/dashboard#talent-tok-section", status_code=status.HTTP_303_SEE_OTHER)
+
+    text = content.strip()
+    if text and len(text) <= 100:
+        talk.content = text
+        talk.updated_at = get_kst_now()
+        db.commit()
+
+    return RedirectResponse(url="/student/dashboard?talk_msg=updated#talent-tok-section", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/talks/{talk_id}/delete")
+async def delete_talk_by_student(
+    talk_id: int,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """달란트 톡톡 학생 본인 글 삭제"""
+    student = get_current_student(request, db)
+    if not student:
+        return RedirectResponse(url="/student/login", status_code=status.HTTP_303_SEE_OTHER)
+
+    talk = db.query(TalentTalk).filter(TalentTalk.id == talk_id, TalentTalk.student_id == student.id).first()
+    if talk:
+        # 학생 본인 글은 안전하게 삭제
+        db.delete(talk)
+        db.commit()
+
+    return RedirectResponse(url="/student/dashboard?talk_msg=deleted#talent-tok-section", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @router.get("/history", response_class=HTMLResponse)

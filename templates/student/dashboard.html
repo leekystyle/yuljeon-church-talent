@@ -193,5 +193,190 @@
     </table>
   </div>
 </div>
+  </div>
+</div>
 {% endif %}
+
+<!-- ======================================================== -->
+<!-- 💬 달란트 톡톡 (Talent Tok) 한줄 소통 공간 -->
+<!-- ======================================================== -->
+<div id="talent-tok-section" class="card" style="margin-top: 1.8rem; border-top: 4px solid #10b981; background: #ffffff;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+    <div>
+      <h3 style="font-size: 1.25rem; font-weight: 800; color: #065f46; display: flex; align-items: center; gap: 6px; margin: 0 0 0.2rem 0;">
+        💬 달란트 톡톡 (Talent Tok)
+      </h3>
+      <p style="color: #64748b; font-size: 0.88rem; margin: 0;">
+        교회학교 친구들과 감사의 마음과 응원의 한마디를 나누어 보아요! (최대 100자)
+      </p>
+    </div>
+    <span class="badge" style="background: #ecfdf5; color: #047857; font-weight: 700; border: 1px solid #a7f3d0; padding: 4px 10px; font-size: 0.82rem;">
+      실시간 이야기 {{ talks | length }}개
+    </span>
+  </div>
+
+  {% if request.query_params.get('talk_msg') == 'created' %}
+  <div class="alert alert-success" style="padding: 0.6rem 1rem; font-size: 0.88rem; margin-bottom: 1rem;">
+    🎉 달란트 톡톡에 한마디를 남겼어요!
+  </div>
+  {% elif request.query_params.get('talk_msg') == 'updated' %}
+  <div class="alert alert-success" style="padding: 0.6rem 1rem; font-size: 0.88rem; margin-bottom: 1rem;">
+    ✏️ 내 글이 수정되었어요!
+  </div>
+  {% elif request.query_params.get('talk_msg') == 'deleted' %}
+  <div class="alert alert-success" style="padding: 0.6rem 1rem; font-size: 0.88rem; margin-bottom: 1rem;">
+    🗑️ 내 글이 삭제되었어요.
+  </div>
+  {% elif request.query_params.get('talk_error') == 'empty' %}
+  <div class="alert alert-danger" style="padding: 0.6rem 1rem; font-size: 0.88rem; margin-bottom: 1rem;">
+    ⚠️ 남길 글 내용을 입력해 주세요. (최대 100자)
+  </div>
+  {% endif %}
+
+  <!-- 1. 새 글 작성 폼 -->
+  {% if not is_admin_preview %}
+  <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 1rem 1.2rem; margin-bottom: 1.5rem;">
+    <form action="/student/talks/create" method="POST">
+      <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem;">
+        <img src="{{ student.photo_url or '/static/uploads/profiles/default_avatar.svg' }}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1.5px solid #10b981;">
+        <span style="font-weight: 700; color: #1e293b; font-size: 0.92rem;">{{ student.name }}</span>
+        <span style="font-size: 0.8rem; color: #64748b;">({{ student.department or '교회학교' }})</span>
+      </div>
+
+      <div style="position: relative;">
+        <textarea name="content" id="talk-create-input" rows="2" maxlength="100" class="form-control" placeholder="친구들과 선생님께 감사 인사나 응원의 한마디를 적어보세요! (최대 100자)" required style="resize: none; font-size: 0.92rem; padding: 0.6rem 0.8rem;" oninput="updateCreateCount(this.value)"></textarea>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem;">
+        <span id="talk-create-counter" style="font-size: 0.8rem; color: #64748b;">0 / 100자</span>
+        <button type="submit" class="btn btn-sm btn-primary" style="background: #059669; border-color: #059669; font-weight: 700; padding: 0.4rem 1.1rem;">
+          톡톡 남기기 🚀
+        </button>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+
+  <!-- 2. 달란트 톡톡 글 목록 -->
+  <div style="display: flex; flex-direction: column; gap: 0.9rem;">
+    {% for t in talks %}
+    <div id="talk-card-{{ t.id }}" style="border-radius: 10px; padding: 0.9rem 1.1rem; {% if t.is_deleted %}background: #f8fafc; border: 1px dashed #cbd5e1;{% else %}background: #f0fdf4; border: 1px solid #dcfce7;{% endif %}">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.4rem;">
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+          <img src="{{ t.student.photo_url or '/static/uploads/profiles/default_avatar.svg' }}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1.5px solid {% if t.is_deleted %}#94a3b8{% else %}#10b981{% endif %};">
+          <div>
+            <span style="font-weight: 700; color: #1e293b; font-size: 0.9rem;">{{ t.student.name }}</span>
+            <span style="font-size: 0.78rem; color: #64748b; margin-left: 4px;">{{ t.student.department or '교회학교' }}</span>
+          </div>
+        </div>
+        
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-size: 0.78rem; color: #94a3b8;">
+            {{ t.created_at.strftime('%m-%d %H:%M') if t.created_at else '' }}
+          </span>
+
+          {% if not t.is_deleted and t.student_id == student.id and not is_admin_preview %}
+          <!-- 내가 쓴 글인 경우 수정/삭제 버튼 -->
+          <div style="display: flex; gap: 0.25rem;">
+            <button type="button" onclick="showEditForm({{ t.id }})" class="btn btn-sm btn-outline" style="padding: 2px 7px; font-size: 0.75rem; color: #2563eb; border-color: #93c5fd;">
+              ✏️ 수정
+            </button>
+            <form action="/student/talks/{{ t.id }}/delete" method="POST" style="display: inline;" onsubmit="return confirm('내가 쓴 이 글을 삭제할까요?');">
+              <button type="submit" class="btn btn-sm btn-outline" style="padding: 2px 7px; font-size: 0.75rem; color: #dc2626; border-color: #fca5a5;">
+                🗑️ 삭제
+              </button>
+            </form>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- 본문 내용 -->
+      {% if t.is_deleted %}
+      <div style="color: #94a3b8; font-size: 0.88rem; font-style: italic; padding: 0.3rem 0; display: flex; align-items: center; gap: 6px;">
+        <span>🚫</span>
+        <span>[관리자 <strong>{{ t.deleted_by or '관리자' }}</strong> 선생님에 의해 삭제된 글입니다.]</span>
+      </div>
+      {% else %}
+      <div id="talk-display-{{ t.id }}" style="font-size: 0.94rem; color: #1e293b; line-height: 1.5; word-break: break-all; padding: 0.2rem 0;">
+        {{ t.content }}
+      </div>
+
+      <!-- 본인 글 인라인 수정 폼 (초기 숨김) -->
+      {% if t.student_id == student.id and not is_admin_preview %}
+      <div id="talk-edit-form-{{ t.id }}" style="display: none; margin-top: 0.6rem; background: white; padding: 0.8rem; border-radius: 8px; border: 1px solid #93c5fd;">
+        <form action="/student/talks/{{ t.id }}/update" method="POST">
+          <textarea name="content" id="talk-edit-input-{{ t.id }}" rows="2" maxlength="100" class="form-control" style="resize: none; font-size: 0.9rem;" oninput="updateEditCount({{ t.id }}, this.value)" required>{{ t.content }}</textarea>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.4rem;">
+            <span id="talk-edit-counter-{{ t.id }}" style="font-size: 0.78rem; color: #64748b;">{{ t.content | length }} / 100자</span>
+            <div style="display: flex; gap: 0.3rem;">
+              <button type="button" onclick="hideEditForm({{ t.id }})" class="btn btn-sm btn-outline" style="padding: 2px 8px; font-size: 0.78rem;">취소</button>
+              <button type="submit" class="btn btn-sm btn-primary" style="padding: 2px 10px; font-size: 0.78rem; font-weight: 700;">수정 완료</button>
+            </div>
+          </div>
+        </form>
+      </div>
+      {% endif %}
+      {% endif %}
+    </div>
+    {% else %}
+    <div style="text-align: center; color: #94a3b8; padding: 2rem 0; font-size: 0.9rem;">
+      아직 올라온 톡톡이 없어요! 첫 번째 따뜻한 한마디를 남겨볼까요? 💬
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<script>
+  function updateCreateCount(val) {
+    const len = (val || '').length;
+    const el = document.getElementById('talk-create-counter');
+    if (el) {
+      el.innerText = `${len} / 100자`;
+      if (len >= 100) {
+        el.style.color = '#dc2626';
+        el.style.fontWeight = 'bold';
+      } else {
+        el.style.color = '#64748b';
+        el.style.fontWeight = 'normal';
+      }
+    }
+  }
+
+  function showEditForm(talkId) {
+    const editForm = document.getElementById(`talk-edit-form-${talkId}`);
+    const displayEl = document.getElementById(`talk-display-${talkId}`);
+    if (editForm && displayEl) {
+      editForm.style.display = 'block';
+      displayEl.style.display = 'none';
+      const input = document.getElementById(`talk-edit-input-${talkId}`);
+      if (input) input.focus();
+    }
+  }
+
+  function hideEditForm(talkId) {
+    const editForm = document.getElementById(`talk-edit-form-${talkId}`);
+    const displayEl = document.getElementById(`talk-display-${talkId}`);
+    if (editForm && displayEl) {
+      editForm.style.display = 'none';
+      displayEl.style.display = 'block';
+    }
+  }
+
+  function updateEditCount(talkId, val) {
+    const len = (val || '').length;
+    const el = document.getElementById(`talk-edit-counter-${talkId}`);
+    if (el) {
+      el.innerText = `${len} / 100자`;
+      if (len >= 100) {
+        el.style.color = '#dc2626';
+        el.style.fontWeight = 'bold';
+      } else {
+        el.style.color = '#64748b';
+        el.style.fontWeight = 'normal';
+      }
+    }
+  }
+</script>
 {% endblock %}
+

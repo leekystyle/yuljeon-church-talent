@@ -212,6 +212,27 @@ class OrderAdjustmentLog(Base):
     student = relationship("Student")
 
 
+class TalentTalk(Base):
+    """학생 소통 공간 한줄 게시판 테이블 ('yuljeon-talent_talks')"""
+    __tablename__ = "yuljeon-talent_talks"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    student_id = Column(Integer, ForeignKey("yuljeon-students.id"), nullable=False, index=True)
+    content = Column(String(100), nullable=False)                               # 100자 이내 한줄글
+    created_at = Column(DateTime(timezone=True), default=get_kst_now, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=get_kst_now, onupdate=get_kst_now, nullable=False)
+
+    # 삭제 및 감사 추적 필드
+    is_deleted = Column(Boolean, default=False, nullable=False)                 # 삭제 여부
+    deleted_by = Column(String(50), nullable=True)                              # 삭제 처리자 성명 (학생 본인 또는 관리자 성명)
+    deleted_by_role = Column(String(20), nullable=True)                         # STUDENT 또는 ADMIN
+    delete_reason = Column(String(255), nullable=True)                          # 삭제 사유
+    deleted_at = Column(DateTime(timezone=True), nullable=True)                 # 삭제 일시
+
+    # 관계 정의
+    student = relationship("Student")
+
+
 class SystemConfig(Base):
     """시스템 전역 환경설정 키-값 테이블 ('yuljeon-system_configs')"""
     __tablename__ = "yuljeon-system_configs"
