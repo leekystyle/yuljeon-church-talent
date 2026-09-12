@@ -107,12 +107,20 @@ async def register_student(
 
     photo_url = "/static/uploads/profiles/default_avatar.svg"
     if photo and photo.filename:
+        # 파일 크기 500KB 검사 (500 * 1024 bytes)
+        photo_bytes = await photo.read()
+        if len(photo_bytes) > 500 * 1024:
+            return templates.TemplateResponse("student/register.html", {
+                "request": request,
+                "error": "이미지 파일 크기는 500KB 이하만 업로드 가능합니다."
+            })
+        
         filename = f"{student_code}_{photo.filename.replace(' ', '_')}"
         upload_dir = "static/uploads/profiles"
         os.makedirs(upload_dir, exist_ok=True)
         file_path = os.path.join(upload_dir, filename)
         with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(photo.file, buffer)
+            buffer.write(photo_bytes)
         photo_url = f"/static/uploads/profiles/{filename}"
 
     new_student = Student(

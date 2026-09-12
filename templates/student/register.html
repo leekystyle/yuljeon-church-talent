@@ -13,6 +13,12 @@
       </p>
     </div>
 
+    {% if error %}
+    <div class="alert alert-danger" style="margin-bottom: 1.2rem; border-radius: 0.75rem;">
+      ⚠️ {{ error }}
+    </div>
+    {% endif %}
+
     <form action="/student/register" method="POST" enctype="multipart/form-data">
       <!-- 필수 항목 -->
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-bottom: 1rem;">
@@ -31,9 +37,12 @@
         <div style="font-size: 0.85rem; font-weight: 700; color: #475569; margin-bottom: 0.6rem;">📷 프로필 사진 및 추가 정보 (선택)</div>
 
         <div class="form-group">
-          <label class="form-label" for="photo">학생 프로필 사진</label>
-          <input type="file" id="photo" name="photo" class="form-control" accept="image/*">
-          <small style="color: var(--text-muted); font-size: 0.8rem;">사진을 등록하면 매점 키오스크 화면에 본인 사진이 크게 나타납니다.</small>
+          <label class="form-label" for="photo" style="display: flex; justify-content: space-between;">
+            <span>학생 프로필 사진</span>
+            <span style="font-size: 0.8rem; color: #dc2626; font-weight: 800;">* 최대 500KB 이하</span>
+          </label>
+          <input type="file" id="photo" name="photo" class="form-control" accept="image/*" onchange="checkFileSize(this, 500)">
+          <small style="color: var(--text-muted); font-size: 0.8rem;">사진을 등록하면 매점 키오스크 화면에 본인 사진이 크게 나타납니다. (500KB 이하 JPG, PNG, WebP)</small>
         </div>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem;">
@@ -78,4 +87,18 @@
     </form>
   </div>
 </div>
+
+<script>
+function checkFileSize(input, maxKb) {
+  if (input.files && input.files[0]) {
+    const file = input.files[0];
+    const maxBytes = maxKb * 1024;
+    if (file.size > maxBytes) {
+      const currentKb = Math.round(file.size / 1024);
+      alert(`⚠️ 이미지 파일 용량이 너무 큽니다!\n\n- 현재 파일: ${currentKb}KB\n- 허용 용량: 최대 ${maxKb}KB 이하\n\n500KB 이하의 이미지 파일을 선택해 주세요.`);
+      input.value = '';
+    }
+  }
+}
+</script>
 {% endblock %}

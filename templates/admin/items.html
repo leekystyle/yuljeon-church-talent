@@ -42,6 +42,12 @@
 </div>
 {% endif %}
 
+{% if request.query_params.get('error') == 'image_too_large' %}
+<div class="alert alert-danger" style="margin-bottom: 1.5rem; background-color: #fee2e2; border-left: 4px solid #ef4444; color: #991b1b; padding: 1rem; border-radius: 8px;">
+  <strong>⚠️ 이미지 파일 용량 초과:</strong> 상품 이미지 크기는 <strong>500KB 이하</strong>만 업로드할 수 있습니다. 이미지를 압축하거나 다른 파일을 선택해 주세요.
+</div>
+{% endif %}
+
 {% if request.query_params.get('msg') == 'csv_success' %}
 <div class="alert alert-success" style="margin-bottom: 1.5rem;">
   🎉 총 {{ request.query_params.get('count') }}건의 상품이 CSV 파일을 통해 성공적으로 일괄 등록되었습니다!
@@ -146,8 +152,12 @@
         <input type="number" id="item-stock" name="stock" class="form-control" placeholder="예: 50" min="0" required>
       </div>
       <div class="form-group">
-        <label class="form-label" for="item-img">상품 이미지 사진</label>
-        <input type="file" id="item-img" name="image" class="form-control" accept="image/*">
+        <label class="form-label" for="item-img" style="display: flex; justify-content: space-between;">
+          <span>상품 이미지 사진</span>
+          <span style="font-size: 0.8rem; color: #dc2626; font-weight: 800;">* 최대 500KB 이하</span>
+        </label>
+        <input type="file" id="item-img" name="image" class="form-control" accept="image/*" onchange="checkItemImageFileSize(this, 500)">
+        <small style="color: var(--text-muted); font-size: 0.8rem;">권장 포맷: JPG, PNG, WebP, SVG (500KB 이하)</small>
       </div>
 
       <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
@@ -202,8 +212,12 @@
 
     <form id="item-image-form" method="POST" enctype="multipart/form-data">
       <div class="form-group">
-        <label class="form-label" for="update-img-file">새로운 이미지 파일 선택 (JPG, PNG, WebP, SVG)</label>
-        <input type="file" id="update-img-file" name="image" class="form-control" accept="image/*" required>
+        <label class="form-label" for="update-img-file" style="display: flex; justify-content: space-between;">
+          <span>새로운 이미지 파일 선택</span>
+          <span style="font-size: 0.8rem; color: #dc2626; font-weight: 800;">* 최대 500KB 이하</span>
+        </label>
+        <input type="file" id="update-img-file" name="image" class="form-control" accept="image/*" required onchange="checkItemImageFileSize(this, 500)">
+        <small style="color: var(--text-muted); font-size: 0.8rem;">권장 포맷: JPG, PNG, WebP, SVG (500KB 이하)</small>
       </div>
 
       <div style="display: flex; gap: 0.5rem; margin-top: 1.2rem;">
@@ -231,6 +245,18 @@
   }
   function closeItemImageModal() {
     document.getElementById('item-image-modal').classList.remove('show');
+  }
+
+  function checkItemImageFileSize(input, maxKb) {
+    if (input.files && input.files[0]) {
+      const file = input.files[0];
+      const maxBytes = maxKb * 1024;
+      if (file.size > maxBytes) {
+        const currentKb = Math.round(file.size / 1024);
+        alert(`⚠️ 이미지 파일 용량이 너무 큽니다!\n\n- 현재 파일 크기: ${currentKb}KB\n- 제한 용량: 최대 ${maxKb}KB 이하\n\n500KB 이하의 이미지 파일을 선택해 주세요.`);
+        input.value = '';
+      }
+    }
   }
 </script>
 {% endblock %}

@@ -119,12 +119,15 @@ async def create_student(
 
     photo_url = "/static/uploads/profiles/default_avatar.svg"
     if photo and photo.filename:
+        photo_bytes = await photo.read()
+        if len(photo_bytes) > 500 * 1024:
+            return RedirectResponse(url="/admin/students?error=image_too_large", status_code=status.HTTP_303_SEE_OTHER)
         filename = f"{student_code}_{photo.filename.replace(' ', '_')}"
         upload_dir = "static/uploads/profiles"
         os.makedirs(upload_dir, exist_ok=True)
         file_path = os.path.join(upload_dir, filename)
         with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(photo.file, buffer)
+            buffer.write(photo_bytes)
         photo_url = f"/static/uploads/profiles/{filename}"
 
     student = Student(
@@ -211,12 +214,15 @@ async def edit_student(
 
 
     if photo and photo.filename:
+        photo_bytes = await photo.read()
+        if len(photo_bytes) > 500 * 1024:
+            return RedirectResponse(url="/admin/students?error=image_too_large", status_code=status.HTTP_303_SEE_OTHER)
         filename = f"{student.student_code}_{photo.filename.replace(' ', '_')}"
         upload_dir = "static/uploads/profiles"
         os.makedirs(upload_dir, exist_ok=True)
         file_path = os.path.join(upload_dir, filename)
         with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(photo.file, buffer)
+            buffer.write(photo_bytes)
         student.photo_url = f"/static/uploads/profiles/{filename}"
 
     db.commit()
@@ -656,12 +662,15 @@ async def create_item(
     item_code = f"P{count + 1:03d}"
     image_url = "/static/images/ramen.svg"
     if image and image.filename:
+        image_bytes = await image.read()
+        if len(image_bytes) > 500 * 1024:
+            return RedirectResponse(url="/admin/items?error=image_too_large", status_code=status.HTTP_303_SEE_OTHER)
         filename = f"{item_code}_{image.filename.replace(' ', '_')}"
         upload_dir = "static/images"
         os.makedirs(upload_dir, exist_ok=True)
         file_path = os.path.join(upload_dir, filename)
         with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(image.file, buffer)
+            buffer.write(image_bytes)
         image_url = f"/static/images/{filename}"
 
     item = Item(
@@ -833,12 +842,15 @@ async def update_item_image(
         raise HTTPException(status_code=404, detail="물품을 찾을 수 없습니다.")
 
     if image and image.filename:
+        image_bytes = await image.read()
+        if len(image_bytes) > 500 * 1024:
+            return RedirectResponse(url="/admin/items?error=image_too_large", status_code=status.HTTP_303_SEE_OTHER)
         filename = f"item_{item.item_code}_{image.filename.replace(' ', '_')}"
         upload_dir = "static/uploads/items"
         os.makedirs(upload_dir, exist_ok=True)
         file_path = os.path.join(upload_dir, filename)
         with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(image.file, buffer)
+            buffer.write(image_bytes)
         item.image_url = f"/static/uploads/items/{filename}"
         db.commit()
 
