@@ -77,7 +77,14 @@ async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
 # 1 & 6. 학생 관리 기능
 # -------------------------------------------------------------
 @router.get("/students", response_class=HTMLResponse)
-async def list_students(request: Request, search: Optional[str] = None, dept: Optional[str] = None, db: Session = Depends(get_db)):
+async def list_students(
+    request: Request,
+    search: Optional[str] = None,
+    dept: Optional[str] = None,
+    sort_by: Optional[str] = None,
+    sort_order: Optional[str] = "asc",
+    db: Session = Depends(get_db)
+):
     check_admin(request)
     query = db.query(Student)
     if search:
@@ -86,14 +93,23 @@ async def list_students(request: Request, search: Optional[str] = None, dept: Op
     if dept:
         query = query.filter(Student.department == dept.strip())
 
-    students = query.order_by(Student.student_code.asc()).all()
+    if sort_by == "name":
+        query = query.order_by(Student.name.desc() if sort_order == "desc" else Student.name.asc())
+    elif sort_by == "talent":
+        query = query.order_by(Student.current_talent.desc() if sort_order == "desc" else Student.current_talent.asc())
+    else:
+        query = query.order_by(Student.student_code.asc())
+
+    students = query.all()
     departments = [d.name for d in db.query(Department).filter(Department.is_active == True).order_by(Department.display_order.asc(), Department.id.asc()).all()]
     return templates.TemplateResponse("admin/students.html", {
         "request": request,
         "students": students,
         "departments": departments,
         "search": search or "",
-        "dept": dept or ""
+        "dept": dept or "",
+        "sort_by": sort_by or "",
+        "sort_order": sort_order or "asc"
     })
 
 
