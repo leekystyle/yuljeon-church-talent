@@ -36,11 +36,54 @@
 <div class="alert alert-success">✓ 지급 기준 분류가 수정되었습니다.</div>
 {% elif request.query_params.get('msg') == 'cat_deleted' %}
 <div class="alert alert-success">✓ 지급 기준 분류가 삭제되었습니다.</div>
+{% elif request.query_params.get('msg') == 'kiosk_updated' %}
+<div class="alert alert-success">✓ 매점 키오스크 환경설정(자동 로그아웃 시간)이 성공적으로 저장되었습니다.</div>
 {% elif request.query_params.get('error') == 'dept_duplicate' %}
 <div class="alert alert-danger">⚠️ 이미 동일한 이름의 소속부서가 존재합니다.</div>
 {% elif request.query_params.get('error') == 'cat_duplicate' %}
 <div class="alert alert-danger">⚠️ 이미 동일한 이름의 기준 분류가 존재합니다.</div>
 {% endif %}
+
+<!-- 매점 키오스크 환경 설정 카드 -->
+<div class="card" style="border-top: 4px solid #f59e0b; margin-bottom: 2rem;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.5rem;">
+    <div>
+      <h3 style="font-size: 1.25rem; font-weight: 700; color: #b45309;">🛒 매점 키오스크 환경 설정</h3>
+      <p style="color: var(--text-muted); font-size: 0.88rem; margin-top: 0.2rem;">
+        공용 태블릿 키오스크의 <strong>로그인 세션 자동 로그아웃 대기 시간</strong>을 자유롭게 설정합니다. (실시간 연동)
+      </p>
+    </div>
+    <span class="badge badge-warning" style="font-size: 0.9rem; padding: 0.35rem 0.8rem;">현재 설정: {{ kiosk_auto_logout_seconds }}초</span>
+  </div>
+
+  <form action="/admin/settings/kiosk" method="POST" style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 1.2rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+    <div style="flex: 1; min-width: 280px;">
+      <label class="form-label" for="kiosk-timeout-input" style="color: #92400e; font-weight: 700; margin-bottom: 0.3rem;">
+        ⏱️ 로그인 세션 자동 로그아웃 시간 (초 단위)
+      </label>
+      <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+        <input type="number" id="kiosk-timeout-input" name="kiosk_auto_logout_seconds" value="{{ kiosk_auto_logout_seconds }}" min="5" max="300" class="form-control" style="width: 110px; font-size: 1.1rem; font-weight: 800; text-align: center;" required>
+        <span style="font-weight: 700; color: #78350f;">초</span>
+        <div style="display: flex; gap: 0.3rem;">
+          <button type="button" class="btn btn-sm btn-outline" style="background: white; border-color: #fcd34d; font-size: 0.8rem;" onclick="setKioskTimeout(10)">10초</button>
+          <button type="button" class="btn btn-sm btn-outline" style="background: white; border-color: #fcd34d; font-size: 0.8rem;" onclick="setKioskTimeout(15)">15초</button>
+          <button type="button" class="btn btn-sm btn-outline" style="background: white; border-color: #fcd34d; font-size: 0.8rem;" onclick="setKioskTimeout(20)">20초</button>
+          <button type="button" class="btn btn-sm btn-outline" style="background: white; border-color: #fcd34d; font-size: 0.8rem;" onclick="setKioskTimeout(30)">30초</button>
+          <button type="button" class="btn btn-sm btn-outline" style="background: white; border-color: #fcd34d; font-size: 0.8rem;" onclick="setKioskTimeout(60)">60초</button>
+        </div>
+      </div>
+      <small style="color: #b45309; display: block; margin-top: 0.4rem;">
+        ※ 학생이 로그인한 후 화면 조작(터치/클릭)이 없을 경우 해당 시간 경과 시 자동으로 안전 로그아웃됩니다. (설정 범위: 5초 ~ 300초)
+      </small>
+    </div>
+
+    <div>
+      <button type="submit" class="btn btn-primary" style="background: #d97706; border-color: #d97706; font-weight: 700; padding: 0.7rem 1.4rem;">
+        💾 키오스크 설정 저장
+      </button>
+    </div>
+  </form>
+</div>
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
   <!-- 1. 학생 소속부서 설정 카드 -->
@@ -267,6 +310,11 @@
   }
   function closeEditCatModal() {
     document.getElementById('cat-modal').classList.remove('show');
+  }
+
+  function setKioskTimeout(sec) {
+    const input = document.getElementById('kiosk-timeout-input');
+    if (input) input.value = sec;
   }
 </script>
 {% endblock %}

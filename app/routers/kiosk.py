@@ -6,7 +6,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import Student, Item, Order, OrderItem
+from app.models import Student, Item, Order, OrderItem, get_system_config
 from app.timezone import get_kst_now
 
 router = APIRouter(prefix="/kiosk", tags=["kiosk"])
@@ -37,10 +37,13 @@ async def kiosk_main(request: Request, db: Session = Depends(get_db)):
         except (ValueError, TypeError):
             student = None
 
+    kiosk_auto_logout_seconds = int(get_system_config(db, "kiosk_auto_logout_seconds", "10"))
+
     return templates.TemplateResponse("kiosk/shop.html", {
         "request": request,
         "items": items,
-        "student": student
+        "student": student,
+        "kiosk_auto_logout_seconds": kiosk_auto_logout_seconds
     })
 
 

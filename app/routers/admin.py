@@ -12,7 +12,7 @@ from sqlalchemy import func
 from app.database import get_db
 from app.models import (
     Student, TalentRule, TalentEarning, Item, Order, OrderItem, AnnualReset, AnnualSnapshot,
-    Department, RuleCategory, OrderAdjustmentLog
+    Department, RuleCategory, OrderAdjustmentLog, SystemConfig, get_system_config, set_system_config
 )
 from app.config import ADMIN_PW
 from app.timezone import get_kst_now
@@ -1147,11 +1147,35 @@ async def settings_page(request: Request, db: Session = Depends(get_db)):
     check_admin(request)
     departments = db.query(Department).order_by(Department.display_order.asc(), Department.id.asc()).all()
     categories = db.query(RuleCategory).order_by(RuleCategory.display_order.asc(), RuleCategory.id.asc()).all()
+    kiosk_auto_logout_seconds = int(get_system_config(db, "kiosk_auto_logout_seconds", "10"))
     return templates.TemplateResponse("admin/settings.html", {
         "request": request,
         "departments": departments,
-        "categories": categories
+        "categories": categories,
+        "kiosk_auto_logout_seconds": kiosk_auto_logout_seconds
     })
+
+
+@router.post("/settings/kiosk")
+async def update_kiosk_settings(
+    request: Request,
+    kiosk_auto_logout_seconds: int = Form(...),
+    db: Session = Depends(get_db)
+):
+    """매점 키오스크 환경설정 (자동 로그아웃 시간 등) 갱신"""
+    check_admin(request)
+    if kiosk_auto_logout_seconds < 5:
+        kiosk_auto_logout_seconds = 5
+    elif kiosk_auto_logout_seconds > 600:
+        kiosk_auto_logout_seconds = 600
+
+    set_system_config(
+        db,
+        key="kiosk_auto_logout_seconds",
+        value=str(kiosk_auto_logout_seconds),
+        description="매점 키오스크 로그인 세션 자동 로그아웃 대기 시간 (초)"
+    )
+    return RedirectResponse(url="/admin/settings?msg=kiosk_updated", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @router.post("/settings/departments/create")

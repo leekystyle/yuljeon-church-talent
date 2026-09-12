@@ -199,3 +199,41 @@ class OrderAdjustmentLog(Base):
     # 관계 정의
     student = relationship("Student")
 
+
+class SystemConfig(Base):
+    """시스템 전역 환경설정 키-값 테이블 ('yuljeon-system_configs')"""
+    __tablename__ = "yuljeon-system_configs"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    config_key = Column(String(50), unique=True, index=True, nullable=False)   # 설정 키
+    config_value = Column(String(255), nullable=False)                         # 설정 값
+    description = Column(String(255), nullable=True)                           # 설정 설명
+    updated_at = Column(DateTime(timezone=True), default=get_kst_now, onupdate=get_kst_now, nullable=False)
+
+
+def get_system_config(db, key: str, default: str = "") -> str:
+    """시스템 설정값 조회 (없을 경우 기본값 반환)"""
+    try:
+        cfg = db.query(SystemConfig).filter(SystemConfig.config_key == key).first()
+        if cfg and cfg.config_value is not None:
+            return cfg.config_value
+    except Exception:
+        pass
+    return default
+
+
+def set_system_config(db, key: str, value: str, description: str = None) -> SystemConfig:
+    """시스템 설정값 등록 또는 갱신"""
+    cfg = db.query(SystemConfig).filter(SystemConfig.config_key == key).first()
+    if not cfg:
+        cfg = SystemConfig(config_key=key, config_value=str(value), description=description, updated_at=get_kst_now())
+        db.add(cfg)
+    else:
+        cfg.config_value = str(value)
+        if description:
+            cfg.description = description
+        cfg.updated_at = get_kst_now()
+    db.commit()
+    db.refresh(cfg)
+    return cfg
+

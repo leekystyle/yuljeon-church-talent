@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from app.database import engine, Base, SessionLocal
 from app.models import (
     Student, TalentRule, TalentEarning, Item, Order, OrderItem, AnnualReset, AnnualSnapshot,
-    Department, RuleCategory, OrderAdjustmentLog
+    Department, RuleCategory, OrderAdjustmentLog, SystemConfig, set_system_config
 )
 from sqlalchemy import text
 from app.timezone import get_kst_now
@@ -356,7 +356,18 @@ def init_db_and_seed():
             db.commit()
             print("✓ [yuljeon-rule_categories] 기본 기준 분류 5건 등록 완료")
 
-        print("=== [3/3] 전체 10개 테이블 초기화 및 시딩 완료! ===")
+        # 11. yuljeon-system_configs 시스템 환경설정 기본값
+        kiosk_timeout_cfg = db.query(SystemConfig).filter(SystemConfig.config_key == "kiosk_auto_logout_seconds").first()
+        if not kiosk_timeout_cfg:
+            set_system_config(
+                db,
+                key="kiosk_auto_logout_seconds",
+                value="10",
+                description="매점 키오스크 로그인 세션 자동 로그아웃 대기 시간 (초)"
+            )
+            print("✓ [yuljeon-system_configs] 매점 키오스크 자동 로그아웃 기본 시간(10초) 등록 완료")
+
+        print("=== [3/3] 전체 테이블 초기화 및 시딩 완료! ===")
     finally:
         db.close()
 
