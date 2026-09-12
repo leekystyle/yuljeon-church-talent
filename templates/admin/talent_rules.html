@@ -72,7 +72,14 @@
           </td>
           <td style="text-align: center;">
             <div style="display: flex; gap: 0.3rem; justify-content: center;">
-              <button type="button" class="btn btn-sm btn-primary" onclick="openEditRuleModal({{ r.id }}, {{ r.title | tojson }}, {{ r.category | tojson }}, {{ r.points }}, {{ (r.description or '') | tojson }}, {{ 'true' if r.is_public else 'false' }})">✏️ 수정</button>
+              <button type="button" class="btn btn-sm btn-primary"
+                data-id="{{ r.id }}"
+                data-title="{{ r.title }}"
+                data-category="{{ r.category }}"
+                data-points="{{ r.points }}"
+                data-desc="{{ r.description or '' }}"
+                data-public="{{ 'true' if r.is_public else 'false' }}"
+                onclick="handleEditRuleClick(this)">✏️ 수정</button>
               <form action="/admin/talent/rules/{{ r.id }}/delete" method="POST" onsubmit="return confirm('\'{{ r.title }}\' 지급 기준을 삭제하시겠습니까?');" style="display:inline;">
                 <button type="submit" class="btn btn-sm btn-danger">삭제</button>
               </form>
@@ -196,6 +203,17 @@
 <script>
   function openRuleModal() { document.getElementById('rule-modal').classList.add('show'); }
   function closeRuleModal() { document.getElementById('rule-modal').classList.remove('show'); }
+
+  function handleEditRuleClick(btn) {
+    const id = btn.getAttribute('data-id');
+    const title = btn.getAttribute('data-title') || '';
+    const category = btn.getAttribute('data-category') || '';
+    const points = btn.getAttribute('data-points') || '';
+    const desc = btn.getAttribute('data-desc') || '';
+    const isPublic = btn.getAttribute('data-public') === 'true';
+
+    openEditRuleModal(id, title, category, points, desc, isPublic);
+  }
 
   function openEditRuleModal(id, title, category, points, desc, isPublic) {
     document.getElementById('edit-rule-form').action = `/admin/talent/rules/${id}/edit`;

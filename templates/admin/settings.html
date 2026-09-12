@@ -86,7 +86,12 @@
             </td>
             <td style="text-align: center;">
               <div style="display: flex; gap: 0.3rem; justify-content: center;">
-                <button type="button" class="btn btn-sm btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;" onclick="openEditDeptModal({{ d.id }}, {{ d.name | tojson }}, {{ d.display_order }}, {{ 'true' if d.is_active else 'false' }})">✏️ 수정</button>
+                <button type="button" class="btn btn-sm btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;"
+                  data-id="{{ d.id }}"
+                  data-name="{{ d.name }}"
+                  data-order="{{ d.display_order }}"
+                  data-active="{{ 'true' if d.is_active else 'false' }}"
+                  onclick="handleEditDeptClick(this)">✏️ 수정</button>
                 <form action="/admin/settings/departments/{{ d.id }}/delete" method="POST" onsubmit="return confirm('\'{{ d.name }}\' 부서를 삭제하시겠습니까?');" style="display: inline;">
                   <button type="submit" class="btn btn-sm btn-danger" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;">삭제</button>
                 </form>
@@ -146,7 +151,12 @@
             </td>
             <td style="text-align: center;">
               <div style="display: flex; gap: 0.3rem; justify-content: center;">
-                <button type="button" class="btn btn-sm btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;" onclick="openEditCatModal({{ c.id }}, {{ c.name | tojson }}, {{ c.display_order }}, {{ 'true' if c.is_active else 'false' }})">✏️ 수정</button>
+                <button type="button" class="btn btn-sm btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;"
+                  data-id="{{ c.id }}"
+                  data-name="{{ c.name }}"
+                  data-order="{{ c.display_order }}"
+                  data-active="{{ 'true' if c.is_active else 'false' }}"
+                  onclick="handleEditCatClick(this)">✏️ 수정</button>
                 <form action="/admin/settings/categories/{{ c.id }}/delete" method="POST" onsubmit="return confirm('\'{{ c.name }}\' 분류를 삭제하시겠습니까?');" style="display: inline;">
                   <button type="submit" class="btn btn-sm btn-danger" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;">삭제</button>
                 </form>
@@ -221,6 +231,14 @@
 
 {% block scripts %}
 <script>
+  function handleEditDeptClick(btn) {
+    const id = btn.getAttribute('data-id');
+    const name = btn.getAttribute('data-name') || '';
+    const order = btn.getAttribute('data-order') || 1;
+    const isActive = btn.getAttribute('data-active') === 'true';
+    openEditDeptModal(id, name, order, isActive);
+  }
+
   function openEditDeptModal(id, name, order, isActive) {
     document.getElementById('dept-form').action = `/admin/settings/departments/${id}/edit`;
     document.getElementById('edit-dept-name').value = name;
@@ -230,6 +248,14 @@
   }
   function closeEditDeptModal() {
     document.getElementById('dept-modal').classList.remove('show');
+  }
+
+  function handleEditCatClick(btn) {
+    const id = btn.getAttribute('data-id');
+    const name = btn.getAttribute('data-name') || '';
+    const order = btn.getAttribute('data-order') || 1;
+    const isActive = btn.getAttribute('data-active') === 'true';
+    openEditCatModal(id, name, order, isActive);
   }
 
   function openEditCatModal(id, name, order, isActive) {
