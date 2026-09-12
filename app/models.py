@@ -178,3 +178,24 @@ class RuleCategory(Base):
     display_order = Column(Integer, default=0, nullable=False)                  # 표시 순서
     is_active = Column(Boolean, default=True, nullable=False)                   # 활성화 여부
     created_at = Column(DateTime(timezone=True), default=get_kst_now, nullable=False)
+
+
+class OrderAdjustmentLog(Base):
+    """구매 내역 수정/반품/환불 조정 이력 감사 로그 테이블 ('yuljeon-order_adjustments')"""
+    __tablename__ = "yuljeon-order_adjustments"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    order_id = Column(Integer, nullable=False, index=True)
+    order_number = Column(String(50), nullable=False, index=True)
+    student_id = Column(Integer, ForeignKey("yuljeon-students.id"), nullable=False, index=True)
+    action_type = Column(String(20), nullable=False)                            # REFUND(반품/환불) / UPDATE(품목/수량수정)
+    prev_total_points = Column(Integer, nullable=False)                         # 변경 전 결제 달란트
+    new_total_points = Column(Integer, nullable=False)                          # 변경 후 결제 달란트
+    diff_points = Column(Integer, nullable=False)                               # 달란트 변동액 (+: 환불 반환, -: 추가 차감)
+    details = Column(Text, nullable=True)                                       # 변경 전후 상세 내역 (JSON 또는 문자열)
+    admin_name = Column(String(50), default="관리자", nullable=False)          # 처리자
+    adjusted_at = Column(DateTime(timezone=True), default=get_kst_now, nullable=False)
+
+    # 관계 정의
+    student = relationship("Student")
+

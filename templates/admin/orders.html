@@ -35,7 +35,75 @@
 <div class="alert alert-danger">⚠️ 주문 품목이 최소 1개 이상 존재해야 합니다. (전체 취소는 '반품/환불' 버튼을 이용해 주세요)</div>
 {% endif %}
 
+<!-- 학생별 검색 및 필터링 카드 -->
+<div class="card" style="margin-bottom: 1.5rem; background: #ffffff; border-top: 4px solid #3b82f6;">
+  <form method="GET" action="/admin/orders" style="display: flex; gap: 0.8rem; align-items: flex-end; flex-wrap: wrap;">
+    <div style="flex: 1; min-width: 220px;">
+      <label class="form-label" style="font-size: 0.88rem; color: #1e3a8a; font-weight: 700;">👤 학생 선택 조회</label>
+      <select name="student_id" class="form-control" onchange="this.form.submit()" style="font-size: 0.92rem;">
+        <option value="">-- 전체 학생 보기 (전체 구매 내역) --</option>
+        {% for s in students %}
+        <option value="{{ s.id }}" {% if selected_student_id == s.id %}selected{% endif %}>
+          [{{ s.department or '미지정' }}] {{ s.name }} ({{ s.student_code }}) - 보유: {{ s.current_talent }}달란트
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div style="flex: 1; min-width: 200px;">
+      <label class="form-label" style="font-size: 0.88rem; color: #1e3a8a; font-weight: 700;">🔍 검색어 (이름 / ID / 주문번호)</label>
+      <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="예: 김도현, S001, ORD-..." style="font-size: 0.92rem;">
+    </div>
+
+    <div style="display: flex; gap: 0.4rem;">
+      <button type="submit" class="btn btn-primary" style="padding: 0.65rem 1.2rem; font-weight: 700;">검색 조회</button>
+      {% if selected_student_id or q %}
+      <a href="/admin/orders" class="btn btn-outline" style="padding: 0.65rem 1rem;">필터 초기화</a>
+      {% endif %}
+    </div>
+  </form>
+
+  {% if selected_student %}
+  <!-- 선택된 학생 요약 프로필 배너 -->
+  <div style="margin-top: 1.2rem; padding: 1rem 1.2rem; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+    <div style="display: flex; align-items: center; gap: 0.9rem;">
+      <img src="{{ selected_student.photo_url or '/static/uploads/profiles/default_avatar.svg' }}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid #3b82f6;">
+      <div>
+        <div style="font-size: 1.15rem; font-weight: 800; color: #1e3a8a;">
+          {{ selected_student.name }} <span style="font-size: 0.9rem; font-weight: normal; color: #475569;">({{ selected_student.student_code }})</span>
+        </div>
+        <div style="font-size: 0.85rem; color: #64748b;">
+          소속: <strong>{{ selected_student.department or '교회학교' }}</strong> | 나이: {{ selected_student.age or '-' }}세
+        </div>
+      </div>
+    </div>
+    <div style="display: flex; gap: 1rem; align-items: center;">
+      <div style="background: white; padding: 0.4rem 0.8rem; border-radius: 8px; border: 1px solid #dbeafe; text-align: center;">
+        <span style="font-size: 0.78rem; color: #64748b; display: block;">현재 잔여 달란트</span>
+        <strong style="color: #059669; font-size: 1.15rem;">{{ selected_student.current_talent }} 달란트</strong>
+      </div>
+      <div style="background: white; padding: 0.4rem 0.8rem; border-radius: 8px; border: 1px solid #dbeafe; text-align: center;">
+        <span style="font-size: 0.78rem; color: #64748b; display: block;">누적 사용 달란트</span>
+        <strong style="color: #dc2626; font-size: 1.15rem;">{{ selected_student.total_spent }} 달란트</strong>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- 구매 내역 목록 카드 -->
 <div class="card">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+    <h3 style="font-size: 1.25rem; font-weight: 800; color: #1e293b;">
+      📦 매점 결제 주문 내역
+      {% if selected_student %}
+      <span style="font-size: 0.9rem; color: #2563eb; font-weight: normal;">- {{ selected_student.name }} 학생 (총 {{ orders | length }}건)</span>
+      {% else %}
+      <span style="font-size: 0.9rem; color: #64748b; font-weight: normal;">(총 {{ orders | length }}건)</span>
+      {% endif %}
+    </h3>
+  </div>
+
   <div class="table-responsive">
     <table class="styled-table">
       <thead>
@@ -46,7 +114,7 @@
           <th>구매 품목 및 수량</th>
           <th>결제 달란트</th>
           <th>상태</th>
-          <th>내역 수정 / 반품 관리</th>
+          <th style="text-align: center; width: 170px;">내역 수정 / 반품 관리</th>
         </tr>
       </thead>
       <tbody>
@@ -57,7 +125,10 @@
           <td>
             <div style="display: flex; align-items: center; gap: 0.4rem;">
               <img src="{{ o.student.photo_url or '/static/uploads/profiles/default_avatar.svg' }}" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover;">
-              <strong>{{ o.student.name }}</strong> ({{ o.student.student_code }})
+              <a href="/admin/orders?student_id={{ o.student.id }}" style="text-decoration: none; color: #1e3a8a; font-weight: 700;">
+                {{ o.student.name }}
+              </a>
+              <span style="font-size: 0.8rem; color: #64748b;">({{ o.student.student_code }})</span>
             </div>
           </td>
           <td>
@@ -79,17 +150,17 @@
             <span class="badge badge-warning">{{ o.status }}</span>
             {% endif %}
           </td>
-          <td>
+          <td style="text-align: center;">
             {% if o.status == 'COMPLETED' %}
-            <div style="display: flex; gap: 0.4rem;">
+            <div style="display: flex; gap: 0.4rem; justify-content: center;">
               <button type="button" class="btn btn-sm btn-outline" onclick='openModifyModal({{ o.id }}, {{ o.order_number | tojson }}, {{ o.student.name | tojson }}, {{ o.total_points }}, [
                 {% for it in o.items %}
                 { itemId: {{ it.item_id or 0 }}, itemName: {{ it.item_name | tojson }}, unitPrice: {{ it.unit_price }}, quantity: {{ it.quantity }} }{% if not loop.last %},{% endif %}
                 {% endfor %}
               ])'>
-                수정(변경)
+                ✏️ 수정
               </button>
-              <form action="/admin/orders/{{ o.id }}/modify" method="POST" onsubmit="return confirm('이 구매 건을 반품(환불) 처리하시겠습니까? 학생에게 달란트가 즉시 복구됩니다.');">
+              <form action="/admin/orders/{{ o.id }}/modify" method="POST" onsubmit="return confirm('\'{{ o.order_number }}\' 구매 건을 반품(환불) 처리하시겠습니까? 학생에게 결제 달란트가 즉시 복구됩니다.');" style="display: inline;">
                 <input type="hidden" name="action" value="refund">
                 <button type="submit" class="btn btn-sm btn-danger">반품/환불</button>
               </form>
@@ -97,6 +168,93 @@
             {% else %}
             <span style="color: var(--text-muted); font-size: 0.85rem;">조치 완료</span>
             {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+            조회된 구매 내역이 없습니다.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- 구매 내역 수정 및 반품/환불 조정 이력 (감사 로그) 섹션 (하단 표시) -->
+<div class="card" style="border-top: 4px solid #10b981; margin-top: 2rem;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+    <div>
+      <h3 style="font-size: 1.25rem; font-weight: 800; color: #065f46;">📋 최근 구매내역 수정 및 반품/환불 조정 이력</h3>
+      <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.2rem;">
+        관리자가 주문을 수정하거나 반품/환불 조정한 세부 감사 이력입니다. (투명한 달란트 감사 관리)
+      </p>
+    </div>
+    <span class="badge badge-success" style="font-size: 0.85rem;">총 {{ adjustments | length }}건</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="styled-table" style="font-size: 0.88rem;">
+      <thead>
+        <tr>
+          <th style="width: 140px;">조정 일시(KST)</th>
+          <th>주문번호</th>
+          <th>학생</th>
+          <th style="width: 110px; text-align: center;">조정 구분</th>
+          <th style="width: 160px;">달란트 변동</th>
+          <th>상세 변경 내역</th>
+          <th style="width: 80px; text-align: center;">처리자</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for adj in adjustments %}
+        <tr>
+          <td style="color: #64748b; font-size: 0.83rem;">
+            {{ adj.adjusted_at.strftime('%Y-%m-%d %H:%M:%S') if adj.adjusted_at else '' }}
+          </td>
+          <td><code>{{ adj.order_number }}</code></td>
+          <td>
+            <div style="display: flex; align-items: center; gap: 0.4rem;">
+              <img src="{{ adj.student.photo_url or '/static/uploads/profiles/default_avatar.svg' }}" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover;">
+              <strong>{{ adj.student.name }}</strong>
+              <span style="color: #64748b; font-size: 0.8rem;">({{ adj.student.student_code }})</span>
+            </div>
+          </td>
+          <td style="text-align: center;">
+            {% if adj.action_type == 'REFUND' %}
+            <span class="badge badge-danger">반품/환불</span>
+            {% elif adj.action_type == 'UPDATE' %}
+            <span class="badge badge-primary">품목/수량 수정</span>
+            {% else %}
+            <span class="badge badge-warning">{{ adj.action_type }}</span>
+            {% endif %}
+          </td>
+          <td>
+            <div style="font-weight: 700;">
+              {{ adj.prev_total_points }} ➔ {{ adj.new_total_points }} 달란트
+            </div>
+            <div style="font-size: 0.8rem; margin-top: 0.1rem;">
+              {% if adj.diff_points > 0 %}
+              <span style="color: #059669; font-weight: 700;">+{{ adj.diff_points }} 달란트 환불</span>
+              {% elif adj.diff_points < 0 %}
+              <span style="color: #dc2626; font-weight: 700;">{{ adj.diff_points }} 달란트 추가차감</span>
+              {% else %}
+              <span style="color: #64748b;">변동 없음</span>
+              {% endif %}
+            </div>
+          </td>
+          <td style="color: #334155; font-size: 0.85rem;">
+            {{ adj.details or '-' }}
+          </td>
+          <td style="text-align: center; color: #64748b;">
+            {{ adj.admin_name }}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 1.8rem;">
+            최근 수정/반품/환불 처리된 조정 이력이 없습니다.
           </td>
         </tr>
         {% endfor %}

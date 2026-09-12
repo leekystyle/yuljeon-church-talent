@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from app.database import engine, Base, SessionLocal
 from app.models import (
     Student, TalentRule, TalentEarning, Item, Order, OrderItem, AnnualReset, AnnualSnapshot,
-    Department, RuleCategory
+    Department, RuleCategory, OrderAdjustmentLog
 )
 from sqlalchemy import text
 from app.timezone import get_kst_now
