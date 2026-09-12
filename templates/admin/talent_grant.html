@@ -12,12 +12,12 @@
   <a href="/admin/orders" class="btn btn-sm btn-outline">🔄 구매내역 수정/반품</a>
   <a href="/admin/talks" class="btn btn-sm btn-outline">💬 달란트 톡톡</a>
   <a href="/admin/settings" class="btn btn-sm btn-outline">⚙️ 환경 설정</a>
-  <a href="/admin/annual_reset" class="btn btn-sm btn-outline">⏳ 연간 총괄 초기화</a>
+  <a href="/admin/annual_reset" class="btn btn-sm btn-outline">⏳ 데이터 초기화/연간마감</a>
   <a href="/kiosk" target="_blank" class="btn btn-sm btn-accent" style="font-weight: 700;">🛒 매점 키오스크 ↗</a>
   <a href="/auth/admin/logout" class="btn btn-sm btn-danger" style="margin-left: auto;">로그아웃</a>
 </div>
 
-<div style="max-width: 600px; margin: 0 auto;">
+<div style="max-width: 650px; margin: 0 auto 2rem;">
   <div class="card" style="padding: 2.2rem 2rem;">
     <div style="text-align: center; margin-bottom: 1.5rem;">
       <div style="font-size: 2.5rem; margin-bottom: 0.4rem;">🪙</div>
@@ -61,43 +61,74 @@
     {% endif %}
 
     <form action="/admin/talent/grant" method="POST" onsubmit="return validateGrantForm()">
-      <!-- 소속 부서 우선 선택 (요구사항 3) -->
+      <!-- 1단계: 소속 부서 선택 -->
       <div class="form-group" style="background: #f8fafc; padding: 1rem 1.2rem; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 1.2rem;">
         <label class="form-label" for="dept_filter" style="font-weight: 700; color: #1e3a8a; margin-bottom: 0.3rem;">
           🏢 1단계: 소속 부서 선택
         </label>
         <select id="dept_filter" class="form-control" onchange="filterStudentsByDept(this.value)">
           <option value="ALL">전체 부서 (모든 학생 명단)</option>
-          <option value="유치부">유치부</option>
-          <option value="아동부">아동부</option>
-          <option value="청소년부">청소년부</option>
-          <option value="기타">기타/미지정</option>
+          {% if departments %}
+            {% for dept in departments %}
+            <option value="{{ dept }}">{{ dept }}</option>
+            {% endfor %}
+          {% else %}
+            <option value="유치부">유치부</option>
+            <option value="아동부">아동부</option>
+            <option value="청소년부">청소년부</option>
+            <option value="기타">기타/미지정</option>
+          {% endif %}
         </select>
         <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 0.3rem; margin-bottom: 0;">
-          소속을 선택하면 해당 부서의 학생들만 아래 선택 목록에 필터링됩니다.
+          소속 부서를 선택하면 해당 부서의 학생들만 아래 선택 목록에 필터링됩니다.
         </p>
       </div>
 
-      <!-- 대상 학생 복수 선택 (요구사항 2) -->
-      <div class="form-group">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.4rem;">
+      <!-- 2단계: 대상 학생 선택 (이름 실시간 검색 및 복수 선택) -->
+      <div class="form-group" style="background: #fff; padding: 1rem 1.2rem; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 1.2rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem; flex-wrap: wrap; gap: 0.4rem;">
           <label class="form-label" style="margin-bottom: 0; font-weight: 700; color: #1e3a8a;">
-            👥 2단계: 대상 학생 선택 (복수 선택 가능) <span style="color: red;">*</span>
+            👥 2단계: 대상 학생 선택 (이름 검색 및 다중 선택) <span style="color: red;">*</span>
           </label>
           <div style="display: flex; gap: 0.3rem; align-items: center;">
-            <button type="button" class="btn btn-sm btn-outline" onclick="selectAllVisible(true)">전체 선택</button>
-            <button type="button" class="btn btn-sm btn-outline" onclick="selectAllVisible(false)">전체 해제</button>
-            <span id="selected-badge" class="badge badge-primary" style="font-size: 0.82rem;">0명 선택됨</span>
+            <button type="button" class="btn btn-sm btn-outline" onclick="selectAllVisible(true)">현재목록 전체선택</button>
+            <button type="button" class="btn btn-sm btn-outline" onclick="selectAllVisible(false)">현재목록 해제</button>
+            <button type="button" class="btn btn-sm btn-outline" onclick="clearAllSelected()" style="color: #dc2626; border-color: #fca5a5;">선택 비우기</button>
+            <span id="selected-badge" class="badge badge-primary" style="font-size: 0.85rem; font-weight: 700; padding: 0.35rem 0.6rem;">0명 선택됨</span>
           </div>
         </div>
 
+        <!-- 실시간 이름 검색 입력창 (신규 추가) -->
+        <div style="position: relative; margin-bottom: 0.7rem;">
+          <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #64748b; font-size: 1rem; pointer-events: none;">🔍</span>
+          <input type="text" id="student_name_search" class="form-control" 
+                 placeholder="학생 이름 또는 학번을 검색하세요 (예: 김민수, 은서, S005)" 
+                 oninput="onSearchOrFilterChange()"
+                 style="padding-left: 2.3rem; padding-right: 2.4rem; border: 2px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; background: #fafafa;">
+          <button type="button" id="clear_search_btn" onclick="clearSearchInput()" 
+                  title="검색어 지우기"
+                  style="display: none; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: #e2e8f0; border: none; border-radius: 50%; width: 22px; height: 22px; color: #475569; font-size: 0.8rem; cursor: pointer; line-height: 22px; text-align: center; padding: 0;">✕</button>
+        </div>
+
+        <!-- 선택된 학생 배지 태그 모음 (검색 중에도 선택된 학생 한눈에 확인 & 개별 취소) -->
+        <div id="selected-tags-container" style="display: none; margin-bottom: 0.7rem; padding: 0.6rem 0.8rem; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px;">
+          <div style="font-size: 0.8rem; font-weight: 700; color: #1e40af; margin-bottom: 0.35rem; display: flex; justify-content: space-between; align-items: center;">
+            <span>📌 현재 선택된 지급 대상 학생 (<span id="selected-tags-count">0</span>명):</span>
+            <span style="font-size: 0.75rem; color: #60a5fa; font-weight: normal;">태그의 ✕를 누르면 선택 해제됩니다</span>
+          </div>
+          <div id="selected-tags-list" style="display: flex; flex-wrap: wrap; gap: 0.4rem; max-height: 90px; overflow-y: auto;">
+            <!-- JS 동적 렌더링 -->
+          </div>
+        </div>
+
+        <!-- 학생 체크리스트 목록 -->
         <div id="students-checklist" style="max-height: 250px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; background: white; padding: 0.4rem;">
           {% for s in students %}
-          <label class="student-item-row" data-dept="{{ s.department or '기타' }}" style="display: flex; align-items: center; gap: 0.7rem; padding: 0.5rem 0.7rem; border-bottom: 1px solid #f1f5f9; cursor: pointer; border-radius: 6px; user-select: none;">
-            <input type="checkbox" name="student_ids" value="{{ s.id }}" class="student-chk" onchange="updateCount()" style="width: 17px; height: 17px; cursor: pointer;">
+          <label class="student-item-row" data-id="{{ s.id }}" data-name="{{ s.name }}" data-code="{{ s.student_code }}" data-dept="{{ s.department or '기타' }}" style="display: flex; align-items: center; gap: 0.7rem; padding: 0.5rem 0.7rem; border-bottom: 1px solid #f1f5f9; cursor: pointer; border-radius: 6px; user-select: none;">
+            <input type="checkbox" name="student_ids" value="{{ s.id }}" class="student-chk" onchange="onStudentCheckChange(this)" style="width: 18px; height: 18px; cursor: pointer;">
             <img src="{{ s.photo_url or '/static/uploads/profiles/default_avatar.svg' }}" alt="{{ s.name }}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border); background: white;">
             <div style="flex: 1;">
-              <span style="font-weight: 700; color: #1e293b;">{{ s.name }}</span>
+              <span class="student-name-label" style="font-weight: 700; color: #1e293b;">{{ s.name }}</span>
               <span style="font-size: 0.82rem; color: var(--text-muted); margin-left: 0.3rem;">({{ s.student_code }} / {{ s.department or '미지정' }})</span>
             </div>
             <span style="font-size: 0.85rem; font-weight: 700; color: #d97706;">현재: {{ s.current_talent }}🪙</span>
@@ -134,7 +165,7 @@
         <input type="text" id="granted_by" name="granted_by" class="form-control" placeholder="예: 김선생 / 교육부 교역자" required>
       </div>
 
-      <button type="submit" class="btn btn-primary btn-lg" style="width: 100%; margin-top: 0.8rem;">
+      <button type="submit" class="btn btn-primary btn-lg" style="width: 100%; margin-top: 0.8rem; font-weight: 800; padding: 0.85rem;">
         선택된 학생들에게 달란트 일괄 지급 실행 ➔
       </button>
     </form>
@@ -153,7 +184,7 @@
       <p style="font-weight: bold; margin-bottom: 0.3rem;">📌 작성 안내:</p>
       <ul style="padding-left: 1.2rem; margin: 0; color: #475569;">
         <li><strong>학생고유ID, 달란트점수, 지급사유, 지급자</strong> 4개 필드 모두 필수입니다.</li>
-        <li>학생고유ID는 시스템에 존재하는 코드(예: S001)여야 합니다.</li>
+        <li>학생고유ID는 시스템에 존재하는 코드(예: S005)여야 합니다.</li>
         <li>달란트점수는 1 이상의 양의 정수여야 합니다.</li>
         <li>오류 행이 1개라도 있을 시 전체 작업이 안전하게 롤백됩니다.</li>
       </ul>
@@ -184,22 +215,107 @@
     }
   }
 
-  function filterStudentsByDept(dept) {
+  // 1단계 부서 선택 또는 2단계 이름 검색 시 실행되는 통합 필터 함수
+  function onSearchOrFilterChange() {
+    const dept = document.getElementById('dept_filter').value;
+    const search = document.getElementById('student_name_search').value.trim().toLowerCase();
+    const clearBtn = document.getElementById('clear_search_btn');
+    if (clearBtn) {
+      clearBtn.style.display = search ? 'block' : 'none';
+    }
+
     const rows = document.querySelectorAll('.student-item-row');
     let visibleCount = 0;
+
     rows.forEach(row => {
       const rowDept = row.getAttribute('data-dept');
-      if (dept === 'ALL' || rowDept === dept) {
+      const rowName = (row.getAttribute('data-name') || '').toLowerCase();
+      const rowCode = (row.getAttribute('data-code') || '').toLowerCase();
+
+      const deptMatch = (dept === 'ALL' || rowDept === dept);
+      const searchMatch = (!search || rowName.includes(search) || rowCode.includes(search));
+
+      if (deptMatch && searchMatch) {
         row.style.display = 'flex';
         visibleCount++;
       } else {
         row.style.display = 'none';
-        const chk = row.querySelector('.student-chk');
-        if (chk) chk.checked = false;
       }
     });
-    document.getElementById('no-students-alert').style.display = visibleCount === 0 ? 'block' : 'none';
-    updateCount();
+
+    const alertBox = document.getElementById('no-students-alert');
+    if (visibleCount === 0) {
+      alertBox.style.display = 'block';
+      if (search) {
+        alertBox.innerHTML = `🔍 검색어 "<strong>${escapeHtml(search)}</strong>"에 해당하는 학생이 없습니다.`;
+      } else {
+        alertBox.textContent = '해당 부서에 등록된 활성 학생이 없습니다.';
+      }
+    } else {
+      alertBox.style.display = 'none';
+    }
+  }
+
+  function clearSearchInput() {
+    const searchInput = document.getElementById('student_name_search');
+    searchInput.value = '';
+    onSearchOrFilterChange();
+    searchInput.focus();
+  }
+
+  function filterStudentsByDept(dept) {
+    onSearchOrFilterChange();
+  }
+
+  function onStudentCheckChange(chk) {
+    updateSelectedState();
+  }
+
+  function updateSelectedState() {
+    const checkedBoxes = document.querySelectorAll('.student-chk:checked');
+    const count = checkedBoxes.length;
+    document.getElementById('selected-badge').textContent = count + '명 선택됨';
+
+    const tagsContainer = document.getElementById('selected-tags-container');
+    const tagsList = document.getElementById('selected-tags-list');
+    const countSpan = document.getElementById('selected-tags-count');
+
+    if (count > 0) {
+      tagsContainer.style.display = 'block';
+      countSpan.textContent = count;
+      tagsList.innerHTML = '';
+
+      checkedBoxes.forEach(chk => {
+        const row = chk.closest('.student-item-row');
+        const name = row.getAttribute('data-name');
+        const code = row.getAttribute('data-code');
+        const sid = chk.value;
+
+        const tag = document.createElement('span');
+        tag.style.cssText = 'display: inline-flex; align-items: center; gap: 0.35rem; background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; padding: 0.2rem 0.55rem; border-radius: 9999px; font-size: 0.8rem; font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,0.05);';
+        tag.innerHTML = `<span>${name}</span> <span style="font-size: 0.72rem; color: #2563eb; font-weight: normal;">(${code})</span> <button type="button" onclick="uncheckStudent('${sid}')" title="선택 해제" style="background: none; border: none; color: #ef4444; font-weight: bold; cursor: pointer; padding: 0; margin-left: 2px; font-size: 0.85rem; line-height: 1;">✕</button>`;
+        tagsList.appendChild(tag);
+      });
+    } else {
+      tagsContainer.style.display = 'none';
+      tagsList.innerHTML = '';
+      countSpan.textContent = '0';
+    }
+  }
+
+  function uncheckStudent(studentId) {
+    const chk = document.querySelector(`.student-chk[value="${studentId}"]`);
+    if (chk) {
+      chk.checked = false;
+      updateSelectedState();
+    }
+  }
+
+  function clearAllSelected() {
+    document.querySelectorAll('.student-chk').forEach(chk => {
+      chk.checked = false;
+    });
+    updateSelectedState();
   }
 
   function selectAllVisible(check) {
@@ -210,12 +326,13 @@
         if (chk) chk.checked = check;
       }
     });
-    updateCount();
+    updateSelectedState();
   }
 
-  function updateCount() {
-    const checkedCount = document.querySelectorAll('.student-chk:checked').length;
-    document.getElementById('selected-badge').textContent = checkedCount + '명 선택됨';
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
   }
 
   function validateGrantForm() {
